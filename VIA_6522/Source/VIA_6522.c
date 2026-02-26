@@ -22,7 +22,7 @@
 #define TERMINAL_CHARS_WIDE		(VGA_RESOLUTION_X >> 3)
 #define TERMINAL_CHARS_HIGH		(VGA_RESOLUTION_Y >> 3)
 
-enum vga_pins {
+enum device_pins {
 	PIN_RED = 0,
 	PIN_GREEN,
 	PIN_BLUE,
@@ -45,7 +45,9 @@ enum vga_pins {
 	PIN_ADDRESS_BIT1,
 	PIN_ADDRESS_BIT2,
 	PIN_ADDRESS_BIT3,
-	PIN_RESET
+	PIN_RESET,
+	PIN_PORT_A = 32,
+	PIN_PORT_B = 40
 };
 
 enum rgbColours {RGB_BLACK, RGB_RED, RGB_GREEN, RGB_YELLOW, RGB_BLUE, RGB_MAGENTA, RGB_CYAN, RGB_WHITE};
@@ -56,6 +58,49 @@ u8* address_pointer = aVGAScreenBuffer;
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
+enum via_register_names
+{
+	VIA_REG_PORTB = 0,
+	VIA_REG_PORTA,
+	VIA_REG_DATA_DIRB,
+	VIA_REG_DATA_DIRA,
+	VIA_REG_TIMER1_L,
+	VIA_REG_TIMER1_H,
+	VIA_REG_TIMER1_LATCH_L,
+	VIA_REG_TIMER1_LATCH_H,
+	VIA_REG_TIMER2_L,
+	VIA_REG_TIMER2_H,
+	VIA_REG_SHIFT,
+	VIA_REG_AUXILIARY_CONTROL,
+	VIA_REG_PERIPHERAL_CONTROL,
+	VIA_REG_INTERRUPT_FLAGS,
+	VIA_REG_INTERRUPT_ENABLE,
+	VIA_REG_PORTA_NO_HANDSHAKE
+};
+
+// Register Name Strings For Debug View.
+static const char s_aszRegisterNames[16][16] =
+{
+/*  "123456789ABCDEF"	*/
+	"Port B",
+	"Port A",
+	"Dir B",
+	"Dir A",
+	"Timer 1 L",
+	"Timer 1 H",
+	"T1 Latch L",
+	"T1 Latch H",
+	"Timer 2 L",
+	"Timer 2 H",
+	"Shift Reg",
+	"Aux Ctrl",
+	"Periph Ctrl",
+	"Int Flags",
+	"Int Enable",
+	"PA No HShake"
+/*  "123456789ABCDEF"	*/
+};
+
 enum via_irq_flags
 {
 	VIA_IRQ_CA2 = 0,
@@ -116,28 +161,6 @@ typedef struct
 	};
 } ViaRegisters;
 static_assert(sizeof(ViaRegisters) == 16);
-
-static const char s_aszRegisterNames[16][16] =
-{
-/*  "123456789ABCDEF"	*/
-	"Port B",
-	"Port A",
-	"Dir B",
-	"Dir A",
-	"Timer 1 L",
-	"Timer 1 H",
-	"T1 Latch L",
-	"T1 Latch H",
-	"Timer 2 L",
-	"Timer 2 H",
-	"Shift Reg",
-	"Aux Ctrl",
-	"Periph Ctrl",
-	"Int Flags",
-	"Int Enable",
-	"PA No HShake"
-/*  "123456789ABCDEF"	*/
-};
 
 static volatile ViaRegisters s_viaRegs = {0};
 
@@ -362,6 +385,10 @@ static void __scratch_x_func(function_core1)(void)
  	u32 uLow32Pins = gpioc_lo_in_get();
 	u32 uS02 = (uLow32Pins >> PIN_CLK) & 1;
 
+	// Wait for IO0 To Return Hi OR S02 To Assert Low
+	while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) || (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
+		uLow32Pins = gpioc_lo_in_get();
+
 	while(true)
  	{
 		while(true)
@@ -371,12 +398,12 @@ static void __scratch_x_func(function_core1)(void)
 			// If S02 Is Hi
 			if ((uLow32Pins >> PIN_CLK) & 1)
 			{
-				// And IO0 Is Low Then Process VIA IO
-				if (0 == ((uLow32Pins >> PIN_IO0) & 1))
-					break;
-
 				if (0 == uS02)
 				{
+					// And IO0 Is Low Then Process VIA IO
+					if ((0 == ((uLow32Pins >> PIN_IO0) & 1)) && ((uLow32Pins >> PIN_ADDRESS_CS1) & 1))
+						break;
+
 					// S02 Has Transitioned From Low To Hi - Check If The Timer Is Non-Zero
 					if (0 != s_viaRegs.m_uTimer1)
 					{
@@ -391,7 +418,6 @@ static void __scratch_x_func(function_core1)(void)
 							s_viaRegs.m_uTimer1--;
 						}
 					}
-
 					// We Have Finished For This Transition Of S02
 					uS02 = 1;
 				}
@@ -403,50 +429,72 @@ static void __scratch_x_func(function_core1)(void)
 			}
 		}
 
-		delay_120ns();
+		delay_40ns();
+		u32 uHiPins = gpioc_hi_in_get();
+		s_viaRegs.m_u8PortA = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
+		s_viaRegs.m_u8PortA_NoHandshake = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
+
 		uLow32Pins = gpioc_lo_in_get();
+		const u32 uRegister = (uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF;
 
-		if ((uLow32Pins >> PIN_ADDRESS_CS1) & 1)
+		if ((uLow32Pins >> PIN_READ_WRITE) & 1)
 		{
-			if (0 == ((uLow32Pins >> PIN_READ_WRITE) & 1))
-			{
-				// CPU Is In Write Mode So Copy Bus To Internal Registers
-				const u8 uRegTail = (s_uRegTail + 1) & 15;
+			// Set All Data Bits To Output
+			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), (0xFF << PIN_DATA_BIT0));
+			const u8 uData = s_viaRegs.m_aReg[uRegister];
+			gpio_put_masked((0xFF << PIN_DATA_BIT0), (uData << PIN_DATA_BIT0));
 
-				// Ring Buffer Full !!!
-				assert(uRegTail != s_uRegHead);
+			// Wait for IO0 To Return Hi OR S02 To Assert Low
+			while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) && (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
+				uLow32Pins = gpioc_lo_in_get();
 
-				s_aRegBuffer[uRegTail].m_uOffset = (u8)((uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF);
-				s_aRegBuffer[uRegTail].m_uData = (u8)((uLow32Pins >> PIN_DATA_BIT0) & 0xFF);
-				s_uRegTail = uRegTail;
-			}
-			else	// CPU Is In Read Mode - So Present Data On Bus
-			{
-				// Set All Data Bits To Output
-				gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), (0xFF << PIN_DATA_BIT0));
-				const u8 uData = s_viaRegs.m_aReg[(uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF];
-				gpio_put_masked((0xFF << PIN_DATA_BIT0), (uData << PIN_DATA_BIT0));
+			// Get Off The Bus
+			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), 0);
 
-				// for(u32 uPin=0; uPin<8; ++uPin)
-				// {
-				// 	gpio_set_dir(uPin + 32, GPIO_OUT);
-				// 	gpio_put(uPin + 32, (uData >> uPin) & 1);
-				// }
-
-				if (4 == ((uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF))
-					s_viaRegs.m_uInterruptFlags &= ~(1 << VIA_IRQ_TIMER1);
-			}
+			// If We Read Timer1 Low Byte Clear The IRQ Flag.
+			if (VIA_REG_TIMER1_L == uRegister)
+				s_viaRegs.m_uInterruptFlags &= ~(1 << VIA_IRQ_TIMER1);
 		}
+		else // CPU Wants To Write Data Into Our Registers
+		{
+			const u32 uData = (uLow32Pins >> PIN_DATA_BIT0) & 0xFF;
 
-		// Wait for IO0 To Return Hi OR S02 To Assert Low
-		while (0 == (((uLow32Pins >> PIN_IO0) | (~uLow32Pins >> PIN_CLK)) & 1))
-			uLow32Pins = gpioc_lo_in_get();
+			switch(uRegister)
+			{
+				case VIA_REG_PORTB:
+					gpioc_hi_out_xor((gpioc_hi_out_get() ^ (uData << (PIN_PORT_B - 32))) & (0xFF << (PIN_PORT_B - 32)));
+					s_viaRegs.m_u8PortB ^= (s_viaRegs.m_u8PortB ^ uData) & s_viaRegs.m_uDataDirB;
+				break;
 
-		// Get Off The Bus
-		gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), 0);
+				case VIA_REG_PORTA:
+					gpioc_hi_out_xor((gpioc_hi_out_get() ^ (uData << (PIN_PORT_A - 32))) & (0xFF << (PIN_PORT_A - 32)));
+					s_viaRegs.m_u8PortA ^= (s_viaRegs.m_u8PortA ^ uData) & s_viaRegs.m_uDataDirA;
+				break;
 
-		// for(u32 uPin=32; uPin<=40; ++uPin)
-		// 	gpio_set_dir(uPin, GPIO_IN);
+				case VIA_REG_DATA_DIRB:
+					gpioc_hi_oe_xor((gpioc_hi_oe_get() ^ (uData << (PIN_PORT_B - 32))) & (0xFF << (PIN_PORT_B - 32)));
+					s_viaRegs.m_uDataDirB = uData;
+				break;
+
+				case VIA_REG_DATA_DIRA:
+					gpioc_hi_oe_xor((gpioc_hi_oe_get() ^ (uData << (PIN_PORT_A - 32))) & (0xFF << (PIN_PORT_A - 32)));
+					s_viaRegs.m_uDataDirA = uData;
+				break;
+
+				default:
+					// Push Register Set Onto Ring Buffer.
+					const u8 uRegTail = (s_uRegTail + 1) & 15;
+					assert(uRegTail != s_uRegHead);		// Ring Buffer Is Full !!!
+					s_aRegBuffer[uRegTail].m_uOffset = (u8)uRegister;
+					s_aRegBuffer[uRegTail].m_uData = (u8)uData;
+					s_uRegTail = uRegTail;
+				break;
+			}
+
+			// Wait for IO0 To Return Hi OR S02 To Assert Low
+			while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) && (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
+				uLow32Pins = gpioc_lo_in_get();
+		}
 	}
 }
 
@@ -463,46 +511,14 @@ void ProcessVIA(void)
 
 		switch(uRegister)
 		{
-			// case 0:		// Port B
-			// {
-			// 	if (uViaIndex)
-			// 		MCP23S17_WriteRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_OLATB, uData);
-			// }
-			// break;
-
-			// case 1:		// Port A
-			// {
-			// 	if (uViaIndex)
-			// 		MCP23S17_WriteRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_OLATA, uData);
-			// }
-			// break;
-	
-			// case 2:		// Direction B
-			// {
-			// 	s_aViaRegs[uViaIndex].m_uDataDirB = uData;
-
-			// 	if (uViaIndex)
-			// 		MCP23S17_WriteRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_IODIRB, (~uData));
-			// }
-			// break;
-
-			// case 3:		// Direction A
-			// {
-			// 	s_aViaRegs[uViaIndex].m_uDataDirA = uData;
-
-			// 	if (uViaIndex)
-			// 		MCP23S17_WriteRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_IODIRA, (~uData));
-			// }
-			// break;
-			
-			case 4:		// Timer 1 Low Order Counter
+			case VIA_REG_TIMER1_L:
 			{
 				// Write Data Into The Low Order Latch... Not The Counter!!!
 				s_viaRegs.m_uTimer1_Latch_L = uData;
 			}
 			break;
 
-			case 5:		// Timer 1 High Order Counter
+			case VIA_REG_TIMER1_H:
 			{
 				s_viaRegs.m_uTimer1_Latch_H = uData;
 				s_viaRegs.m_uTimer1 = s_viaRegs.m_uTimer1_Latch;
@@ -510,20 +526,20 @@ void ProcessVIA(void)
 			}
 			break;
 
-			case 6:		// Timer 1 Low Order Latch
+			case VIA_REG_TIMER1_LATCH_L:
 			{
 				s_viaRegs.m_uTimer1_Latch_L = uData;
 			}
 			break;
 
-			case 7:		// Timer 1 High Order Latch
+			case VIA_REG_TIMER1_LATCH_H:
 			{
 				s_viaRegs.m_uTimer1_Latch_H = uData;
 				s_viaRegs.m_uInterruptFlags &= ~(1 << VIA_IRQ_TIMER1);
 			}
 			break;
 
-			case 13:
+			case VIA_REG_INTERRUPT_FLAGS:
 			{
 				if (uData & 0x80)
 				{
@@ -541,7 +557,7 @@ void ProcessVIA(void)
 			}
 			break;
 
-			case 14:	// Interrupt Enable Flags
+			case VIA_REG_INTERRUPT_ENABLE:
 			{
 				if (uData & 0x80)
 				{
@@ -570,11 +586,6 @@ void ProcessVIA(void)
 
 	// Reflect The IRQ Bit On The IO Pin.
 	gpio_put(PIN_IRQ, ((~s_viaRegs.m_uInterruptFlags >> VIA_IRQ_SET_CLR) & 1));
-
-	// s_aViaRegs[1].m_u8PortB = MCP23S17_ReadRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_GPIOB);
-	// const u8 uGPIOA = MCP23S17_ReadRegisterSingle(MCP23S17_SPI_VIA_1, MCP23S17_GPIOA);
-	// s_aViaRegs[1].m_u8PortA = uGPIOA;
-	// s_aViaRegs[1].m_u8PortA_NoHandshake = uGPIOA;
 }
 
 //------------------------------------------------------------------------------------------------
@@ -618,6 +629,18 @@ int main()
 
 	gpio_init(PIN_RESET);
 	gpio_set_dir(PIN_RESET, GPIO_IN);
+
+	for(u32 uPinIndex=0; uPinIndex<8; ++uPinIndex)
+	{
+		gpio_init(PIN_PORT_A + uPinIndex);
+		gpio_init(PIN_PORT_B + uPinIndex);
+
+		gpio_set_dir(PIN_PORT_A + uPinIndex, GPIO_IN);
+		gpio_set_dir(PIN_PORT_B + uPinIndex, GPIO_IN);
+
+		gpio_pull_up(PIN_PORT_A + uPinIndex);
+		gpio_pull_up(PIN_PORT_B + uPinIndex);
+	}
 
 	multicore_launch_core1(function_core1);
 
