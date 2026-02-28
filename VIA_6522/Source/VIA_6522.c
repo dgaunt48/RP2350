@@ -389,10 +389,11 @@ static inline uint16_t byteToHex(const uint8_t uByte)
 static void __not_in_flash_func(function_core1)(void)
 {
 	save_and_disable_interrupts();
- 	u32 uLow32Pins = gpioc_lo_in_get();
-	u32 uS02 = (uLow32Pins >> PIN_CLK) & 1;
 
-	// Wait for IO0 To Return Hi OR S02 To Assert Low
+	u32 uS02 = 1;
+ 	u32 uLow32Pins = gpioc_lo_in_get();
+
+	// Wait for IO0 To Return Hi AND S02 To Assert Low
 	while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) || (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
 		uLow32Pins = gpioc_lo_in_get();
 
@@ -411,7 +412,15 @@ static void __not_in_flash_func(function_core1)(void)
 					if ((0 == ((uLow32Pins >> PIN_IO0) & 1)) && ((uLow32Pins >> PIN_ADDRESS_CS1) & 1))
 						break;
 
-					// S02 Has Transitioned From Low To Hi - Check If The Timer Is Non-Zero
+						// We Have Finished For This Transition Of S02
+					uS02 = 1;
+				}
+			}
+			else
+			{
+				if (1 == uS02)
+				{
+					// S02 Has Transitioned From Hi To Low - Check If The Timer Is Non-Zero
 					if (0 != s_viaRegs.m_uTimer1)
 					{
 						// If the Timer Will Go To Zero
@@ -425,45 +434,22 @@ static void __not_in_flash_func(function_core1)(void)
 							s_viaRegs.m_uTimer1--;
 						}
 					}
-					// We Have Finished For This Transition Of S02
-					uS02 = 1;
+
+					u32 uHiPins = gpioc_hi_in_get();
+					s_viaRegs.m_u8PortA = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
+					s_viaRegs.m_u8PortA_NoHandshake = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
 				}
-			}
-			else
-			{
+
 				// S02 Has Transitioned From Hi To Low
 				uS02 = 0;
 			}
 		}
 
-		u32 uHiPins = gpioc_hi_in_get();
-		s_viaRegs.m_u8PortA = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
-		s_viaRegs.m_u8PortA_NoHandshake = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
-
-		delay_40ns();
-		uLow32Pins = gpioc_lo_in_get();
-		const u32 uRegister = (uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF;
-
-		if ((uLow32Pins >> PIN_READ_WRITE) & 1)
+		if ( 0 == ((uLow32Pins >> PIN_READ_WRITE) & 1) )
 		{
-			// Set All Data Bits To Output
-			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), (0xFF << PIN_DATA_BIT0));
-			const u8 uData = s_viaRegs.m_aReg[uRegister];
-			gpio_put_masked((0xFF << PIN_DATA_BIT0), (uData << PIN_DATA_BIT0));
-
-			// Wait for IO0 To Return Hi OR S02 To Assert Low
-			while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) && (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
-				uLow32Pins = gpioc_lo_in_get();
-
-			// Get Off The Bus
-			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), 0);
-
-			// If We Read Timer1 Low Byte Clear The IRQ Flag.
-			if (VIA_REG_TIMER1_L == uRegister)
-				s_viaRegs.m_uInterruptFlags &= ~(1 << VIA_IRQ_TIMER1);
-		}
-		else // CPU Wants To Write Data Into Our Registers
-		{
+			delay_40ns();
+			uLow32Pins = gpioc_lo_in_get();
+			const u32 uRegister = (uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF;
 			const u32 uData = (uLow32Pins >> PIN_DATA_BIT0) & 0xFF;
 
 			switch(uRegister)
@@ -499,8 +485,28 @@ static void __not_in_flash_func(function_core1)(void)
 			}
 
 			// Wait for IO0 To Return Hi OR S02 To Assert Low
+			// while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) && (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
+			// 	uLow32Pins = gpioc_lo_in_get();
+		}
+		else
+		{
+			const u32 uRegister = (uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF;
+			const u8 uData = s_viaRegs.m_aReg[uRegister];
+			gpio_put_masked((0xFF << PIN_DATA_BIT0), (uData << PIN_DATA_BIT0));
+
+			// Set All Data Bits To Output
+			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), (0xFF << PIN_DATA_BIT0));
+
+			// Wait for IO0 To Return Hi OR S02 To Assert Low
 			while ( (0 == ((uLow32Pins >> PIN_IO0) & 1)) && (1 == ((uLow32Pins >> PIN_CLK) & 1)) )
 				uLow32Pins = gpioc_lo_in_get();
+
+			// Get Off The Bus
+			gpio_set_dir_masked((0xFF << PIN_DATA_BIT0), 0);
+
+			// If We Read Timer1 Low Byte Clear The IRQ Flag.
+			if (VIA_REG_TIMER1_L == uRegister)
+				s_viaRegs.m_uInterruptFlags &= ~(1 << VIA_IRQ_TIMER1);
 		}
 	}
 }
@@ -670,14 +676,6 @@ int main()
 		DrawString(20, 20 + uRegisterIndex, "0x", RGB_YELLOW);
 		DrawString(25, 20 + uRegisterIndex, s_aszRegisterNames[uRegisterIndex], RGB_CYAN);
 	}
-
-
-	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
-	s_viaRegs.m_uTimer1 = 0x4826;
-	s_viaRegs.m_uTimer1_Latch = 0x4826;
-	s_viaRegs.m_uInterruptEnable = 0x40;
-	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
-
 
 	while(true)
 	{
