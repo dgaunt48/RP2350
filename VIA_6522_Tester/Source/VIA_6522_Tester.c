@@ -544,12 +544,6 @@ int main()
 		DrawString(VIA_REGISTER_DISPLAY_X + 13, VIA_REGISTER_DISPLAY_Y + 2 + uRegisterIndex, s_aszRegisterNames[uRegisterIndex], RGB_CYAN);
 	}
 
-	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
-	// s_aViaRegs[1].m_uTimer1 = 0x4826;
-	// s_aViaRegs[1].m_uTimer1_Latch = 0x4826;
-	// s_aViaRegs[1].m_uInterruptEnable = 0x40;
-	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
-
 	while(true)
 	{
 		// Update The Register List From The Ring Buffer.

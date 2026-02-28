@@ -31,6 +31,8 @@ set(PICO_PLATFORM rp2350)
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
+set(COMMON_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Common")
+
 project(VIA_6522_Tester C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
@@ -38,15 +40,15 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(VIA_6522_Tester VIA_6522_Tester.c VicChars.c)
+add_executable(VIA_6522_Tester VIA_6522_Tester.c ${COMMON_DIR}/VicChars.c)
 
 pico_set_program_name(VIA_6522_Tester "VIA_6522_Tester")
 pico_set_program_version(VIA_6522_Tester "0.1")
 
 # Generate PIO header
-pico_generate_pio_header(VIA_6522_Tester ${CMAKE_CURRENT_LIST_DIR}/hsync.pio)
-pico_generate_pio_header(VIA_6522_Tester ${CMAKE_CURRENT_LIST_DIR}/vsync.pio)
-pico_generate_pio_header(VIA_6522_Tester ${CMAKE_CURRENT_LIST_DIR}/rgb.pio)
+pico_generate_pio_header(VIA_6522_Tester ${COMMON_DIR}/hsync.pio)
+pico_generate_pio_header(VIA_6522_Tester ${COMMON_DIR}/vsync.pio)
+pico_generate_pio_header(VIA_6522_Tester ${COMMON_DIR}/rgb.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(VIA_6522_Tester 0)
@@ -59,6 +61,7 @@ target_link_libraries(VIA_6522_Tester
 # Add the standard include files to the build
 target_include_directories(VIA_6522_Tester PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}
+  ${COMMON_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
