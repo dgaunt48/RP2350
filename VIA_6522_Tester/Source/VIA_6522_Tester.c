@@ -24,6 +24,9 @@
 #define TERMINAL_CHARS_WIDE		(VGA_RESOLUTION_X >> 3)
 #define TERMINAL_CHARS_HIGH		(VGA_RESOLUTION_Y >> 3)
 
+#define	VIA_REGISTER_DISPLAY_X	(20)
+#define VIA_REGISTER_DISPLAY_Y	(5)
+
 #define VIC_PAL_CLOCK       	(4433618)
 #define VIC_CPU_CLOCK			(VIC_PAL_CLOCK >> 2)
 
@@ -355,7 +358,7 @@ void DrawPetsciiChar(const u32 uXPos, const u32 uYPos, const u8 uChar, const u8 
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-void DrawString(uint32_t uCharX, uint32_t uCharY, const char* pszString, const uint8_t uColour)
+void DrawString(u32 uCharX, u32 uCharY, const char* pszString, const u8 uColour)
 {
 	while (*pszString)
 	{
@@ -368,7 +371,7 @@ void DrawString(uint32_t uCharX, uint32_t uCharY, const char* pszString, const u
 		if (uCharY >= (TERMINAL_CHARS_HIGH-1))
 			return;
 
-		uint8_t c = *pszString++;
+		u8 c = *pszString++;
 
 		if (c >= '`')
 			c -= '`';
@@ -381,9 +384,9 @@ void DrawString(uint32_t uCharX, uint32_t uCharY, const char* pszString, const u
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-static const uint8_t aHexTable[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+static const u8 aHexTable[16] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 
-static inline uint16_t byteToHex(const uint8_t uByte)
+static inline u16 byteToHex(const u8 uByte)
 {
 	return (aHexTable[(uByte >> 4) & 15] << 8) | aHexTable[uByte & 15];
 }
@@ -391,12 +394,40 @@ static inline uint16_t byteToHex(const uint8_t uByte)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-static void PushVIARegister(const u8 uRegister, const u8 uValue)
+static u8 ReadVIARegister(const u8 uRegisterIndex)
+{
+	u32 uLow32Pins = gpioc_lo_in_get();
+
+	// Wait for S02 To Assert Low
+	while (1 == ((uLow32Pins >> PIN_S02_READ) & 1) )
+		uLow32Pins = gpioc_lo_in_get();
+
+	// Put Register Address On BUS
+	gpio_put_masked(0xF << PIN_ADDRESS_BIT0, uRegisterIndex << PIN_ADDRESS_BIT0);
+
+	// Enable VIA
+	gpio_put(PIN_ADDRESS_CS1, true);
+
+	// Wait for S02 To Assert High
+	while (0 == ((uLow32Pins >> PIN_S02_READ) & 1) )
+		uLow32Pins = gpioc_lo_in_get();
+
+	// Disable VIA
+	gpio_put(PIN_ADDRESS_CS1, false);
+
+	return (uLow32Pins >> PIN_DATA_BIT0) & 0xFF;
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+static void PushVIARegister(const u8 uRegisterIndex, const u8 uValue)
 {
 	// Push Register Set Onto Ring Buffer.
 	const u8 uRegTail = (s_uRegTail + 1) & (VIA_RING_BUFFER_SIZE - 1);
 	assert(uRegTail != s_uRegHead);		// Ring Buffer Is Full !!!
-	s_aRegBuffer[uRegTail].m_uOffset = uRegister;
+
+	s_aRegBuffer[uRegTail].m_uOffset = uRegisterIndex;
 	s_aRegBuffer[uRegTail].m_uData = uValue;
 	s_uRegTail = uRegTail;
 }
@@ -404,7 +435,6 @@ static void PushVIARegister(const u8 uRegister, const u8 uValue)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-#define __not_in_flash_func(func_name)   __not_in_flash(__STRING(func_name)) func_name
 static void __not_in_flash_func(function_core1)(void)
 {
 	save_and_disable_interrupts();
@@ -419,36 +449,18 @@ static void __not_in_flash_func(function_core1)(void)
 
 	while(true)
  	{
-	 	u32 uLow32Pins = gpioc_lo_in_get();
-
-		// Wait for S02 To Assert Low
-		while (1 == ((uLow32Pins >> PIN_S02_READ) & 1) )
-			uLow32Pins = gpioc_lo_in_get();
-			
-		// Put Address On BUS
-		gpio_put(PIN_ADDRESS_BIT0, uAddress);
-		uAddress = ~uAddress;
-
-		// Enable VIA
-		gpio_put(PIN_ADDRESS_CS1, true);
-
-		// Wait for S02 To Assert High
-		while (0 == ((uLow32Pins >> PIN_S02_READ) & 1) )
-			uLow32Pins = gpioc_lo_in_get();
-
-		u32 uHiPins = gpioc_hi_in_get();
-
-		// Disable VIA
-		gpio_put(PIN_ADDRESS_CS1, false);
-
 		if(uAddress)
 		{
-			PushVIARegister(VIA_REG_PORTB, (uHiPins >> (PIN_PORT_B - 32)) & 0xFF);
+			const u8 uPortA = ReadVIARegister(VIA_REG_PORTA);
+			PushVIARegister(VIA_REG_PORTA, uPortA);
 		}
 		else
 		{
-			PushVIARegister(VIA_REG_PORTA, (uHiPins >> (PIN_PORT_A - 32)) & 0xFF);
+			const u8 uPortB = ReadVIARegister(VIA_REG_PORTB);
+			PushVIARegister(VIA_REG_PORTB, uPortB);
 		}
+
+		uAddress = !uAddress;
 	}
 }
 
@@ -522,14 +534,14 @@ int main()
 
 	// Draw All The Constant Text To The Screen
 	char szTempString[128];
-	DrawString(20, 18, "VIA 6522", RGB_CYAN);
+	DrawString(VIA_REGISTER_DISPLAY_X + 7, VIA_REGISTER_DISPLAY_Y, "VIA 6522", RGB_CYAN);
 
 	for (u32 uRegisterIndex=0; uRegisterIndex<16; ++uRegisterIndex)
 	{ 
 		sprintf(szTempString, "0x%04X", 0x9110 + uRegisterIndex);
-		DrawString(13, 20 + uRegisterIndex, szTempString, RGB_BLUE);
-		DrawString(20, 20 + uRegisterIndex, "0x", RGB_YELLOW);
-		DrawString(25, 20 + uRegisterIndex, s_aszRegisterNames[uRegisterIndex], RGB_CYAN);
+		DrawString(VIA_REGISTER_DISPLAY_X, VIA_REGISTER_DISPLAY_Y + 2 + uRegisterIndex, szTempString, RGB_BLUE);
+		DrawString(VIA_REGISTER_DISPLAY_X + 7, VIA_REGISTER_DISPLAY_Y + 2 + uRegisterIndex, "0x", RGB_YELLOW);
+		DrawString(VIA_REGISTER_DISPLAY_X + 13, VIA_REGISTER_DISPLAY_Y + 2 + uRegisterIndex, s_aszRegisterNames[uRegisterIndex], RGB_CYAN);
 	}
 
 	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
@@ -552,9 +564,9 @@ int main()
 		for (u32 uRegisterIndex=0; uRegisterIndex<16; ++uRegisterIndex)
 		{ 
 			// Write The Register Values To The Appropriate Screen Position
-			const uint16_t uHexPair = byteToHex(s_viaRegs.m_aReg[uRegisterIndex]);
-			DrawPetsciiChar(22 << 3, (20 + uRegisterIndex) << 3, uHexPair >> 8, RGB_YELLOW);
-			DrawPetsciiChar(23 << 3, (20 + uRegisterIndex) << 3, uHexPair & 255, RGB_YELLOW);
+			const u16 uHexPair = byteToHex(s_viaRegs.m_aReg[uRegisterIndex]);
+			DrawPetsciiChar((VIA_REGISTER_DISPLAY_X + 9) << 3, ((VIA_REGISTER_DISPLAY_Y + 2) + uRegisterIndex) << 3, uHexPair >> 8, RGB_YELLOW);
+			DrawPetsciiChar((VIA_REGISTER_DISPLAY_X + 10) << 3, ((VIA_REGISTER_DISPLAY_Y + 2) + uRegisterIndex) << 3, uHexPair & 255, RGB_YELLOW);
 		}
 		// sleep_ms(16);
 	}
