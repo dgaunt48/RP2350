@@ -1,10 +1,11 @@
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- VIA 6522 ... 2026 Dave Gaunt                                                           ----
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- Version 0.1                                                                            ----
 //------------------------------------------------------------------------------------------------
 #include <stdio.h>
 #include "types.h"
+
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 
@@ -26,13 +27,16 @@ enum device_pins {
 	PIN_RED = 0,
 	PIN_GREEN,
 	PIN_BLUE,
+	PIN_S02_READ,
 	PIN_HSYNC = 8,
 	PIN_VSYNC,
-	PIN_CLK,				/* S02 */
+
+	PIN_RESET,
 	PIN_ADDRESS_CS1,		/* ADDRESS BIT 4 OR 5 On VIC */
 	PIN_IO0,				/* CS2 ACTIVE LOW */
 	PIN_READ_WRITE,
 	PIN_IRQ,
+
 	PIN_DATA_BIT0,
 	PIN_DATA_BIT1,
 	PIN_DATA_BIT2,
@@ -41,19 +45,23 @@ enum device_pins {
 	PIN_DATA_BIT5,
 	PIN_DATA_BIT6,
 	PIN_DATA_BIT7,
+
+	PIN_CLK,				/* S02 - Data Transfer Occurs Only When Phase 2 Clock Is High */
 	PIN_ADDRESS_BIT0,
 	PIN_ADDRESS_BIT1,
 	PIN_ADDRESS_BIT2,
 	PIN_ADDRESS_BIT3,
-	PIN_RESET,
+
 	PIN_PORT_A = 32,
 	PIN_PORT_B = 40
 };
 
+static_assert(23 == PIN_CLK, "Clock must be on PIN 23!");
+
 enum rgbColours {RGB_BLACK, RGB_RED, RGB_GREEN, RGB_YELLOW, RGB_BLUE, RGB_MAGENTA, RGB_CYAN, RGB_WHITE};
 
-u8 aVGAScreenBuffer[(VGA_RESOLUTION_X * VGA_RESOLUTION_Y) >> 1];
-u8* address_pointer = aVGAScreenBuffer;
+u8 volatile aVGAScreenBuffer[(VGA_RESOLUTION_X * VGA_RESOLUTION_Y) >> 1];
+volatile u8* address_pointer = aVGAScreenBuffer;
 
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
@@ -378,8 +386,7 @@ static inline uint16_t byteToHex(const uint8_t uByte)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-#define __scratch_x_func(func_name)   __scratch_x(__STRING(func_name)) func_name
-static void __scratch_x_func(function_core1)(void)
+static void __not_in_flash_func(function_core1)(void)
 {
 	save_and_disable_interrupts();
  	u32 uLow32Pins = gpioc_lo_in_get();
@@ -429,11 +436,11 @@ static void __scratch_x_func(function_core1)(void)
 			}
 		}
 
-		delay_40ns();
 		u32 uHiPins = gpioc_hi_in_get();
 		s_viaRegs.m_u8PortA = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
 		s_viaRegs.m_u8PortA_NoHandshake = (uHiPins >> (PIN_PORT_A - 32)) & 0xFF;
 
+		delay_40ns();
 		uLow32Pins = gpioc_lo_in_get();
 		const u32 uRegister = (uLow32Pins >> PIN_ADDRESS_BIT0) & 0xF;
 
@@ -598,6 +605,10 @@ int main()
 	gpio_init(PIN_CLK);
 	gpio_set_dir(PIN_CLK, GPIO_IN);
 
+	// Clock Is Currently Looped Back So PIN_CLK Can Be Created And Read By The Test Program.
+	gpio_init(PIN_S02_READ);
+	gpio_set_dir(PIN_S02_READ, GPIO_IN);
+
 	// CS1 Is Address Line 4 Or 5 On The VIC.
 	gpio_init(PIN_ADDRESS_CS1);
 	gpio_set_dir(PIN_ADDRESS_CS1, GPIO_IN);
@@ -662,9 +673,9 @@ int main()
 
 
 	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
-	// s_aViaRegs[1].m_uTimer1 = 0x4826;
-	// s_aViaRegs[1].m_uTimer1_Latch = 0x4826;
-	// s_aViaRegs[1].m_uInterruptEnable = 0x40;
+	s_viaRegs.m_uTimer1 = 0x4826;
+	s_viaRegs.m_uTimer1_Latch = 0x4826;
+	s_viaRegs.m_uInterruptEnable = 0x40;
 	// TODO - REMOVE - HACK TO RUN WITHOUT RESET !!!!
 
 
