@@ -42,4 +42,9 @@ static inline void delay_120ns(void)
     asm volatile("nop \n nop \n nop \n nop \n nop");
 }
 
+static inline u16 swap_u16(const u16 value)
+{
+    return (value << 8) | (value >> 8);
+}
+
 #endif /* __types_h_included */
