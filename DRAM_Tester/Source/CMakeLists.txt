@@ -31,7 +31,7 @@ set(PICO_PLATFORM rp2350)
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-set(COMMON_DIR "${CMAKE_CURRENT_LIST_DIR}/../Common")
+set(COMMON_DIR "${CMAKE_CURRENT_LIST_DIR}/../../Common")
 
 project(DRAM_Tester C CXX ASM)
 
@@ -40,15 +40,14 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(DRAM_Tester DRAM_Tester.c ${COMMON_DIR}/lcd7789.c)
+add_executable(DRAM_Tester DRAM_Tester.c pio_patcher.c ${COMMON_DIR}/lcd7789.c)
 
 pico_set_program_name(DRAM_Tester "DRAM_Tester")
 pico_set_program_version(DRAM_Tester "0.1")
 
 # Generate PIO header
-# pico_generate_pio_header(DRAM_Tester ${COMMON_DIR}/hsync.pio)
-# pico_generate_pio_header(DRAM_Tester ${COMMON_DIR}/vsync.pio)
-# pico_generate_pio_header(DRAM_Tester ${COMMON_DIR}/rgb.pio)
+pico_generate_pio_header(DRAM_Tester ${CMAKE_CURRENT_LIST_DIR}/ram4164.pio)
+pico_generate_pio_header(DRAM_Tester ${CMAKE_CURRENT_LIST_DIR}/ram41256.pio)
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(DRAM_Tester 0)
@@ -68,7 +67,6 @@ target_include_directories(DRAM_Tester PRIVATE
 # Add any user requested libraries
 target_link_libraries(
     DRAM_Tester
-    hardware_dma
     hardware_pio
     hardware_spi
     pico_multicore

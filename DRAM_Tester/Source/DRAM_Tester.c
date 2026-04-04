@@ -10,17 +10,19 @@
 
 #include "pico/stdlib.h"
 #include "lcd7789.h"
+#include "hardware/pio.h"
 
-// #include "hardware/pio.h"
-// #include "hardware/dma.h"
+#include "mem_chip.h"
+#include "pio_patcher.h"
+
+PIO pio;
+uint sm = 0;
+uint offset; // Returns offset of starting instruction
+
+#include "ram4164.pio.h"
+#include "ram41256.pio.h"
 
 enum device_pins {
-	PIN_RED = 0,
-	PIN_GREEN,
-	PIN_BLUE,
-	PIN_HSYNC = 8,
-	PIN_VSYNC,
-
 	PIN_CLK = 23
 };
 
@@ -32,9 +34,22 @@ int main()
 	stdio_init_all();
 	lcd7789_Init();
 
-	// gpio_init(PIN_RESET);						// Put The VIA Into Reset
-	// gpio_set_dir(PIN_RESET, GPIO_OUT);
-	// gpio_put(PIN_RESET, false);
+	lcd7789_Fill(0, 0, 240, 135, 0x0540);
+
+	ram4164_setup_pio(5, 0);
+    sleep_ms(10);
+
+    for (u32 i=0; i < 100; i++)
+	{
+        ram4164_ram_write(i, 1);
+        if (ram4164_ram_read(i) == 0)
+			lcd7789_Fill(0, 0, 240, 135, 0x52bf);
+
+		ram4164_ram_write(i, 0);
+
+        if (ram4164_ram_read(i) != 0)
+			lcd7789_Fill(0, 0, 240, 135, 0x52bf);
+    }
 
 	while(true)
 	{
