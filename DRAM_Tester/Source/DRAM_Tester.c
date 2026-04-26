@@ -36,19 +36,33 @@ int main()
 
 	lcd7789_Fill(0, 0, 240, 135, 0x0540);
 
-	ram4164_setup_pio(5, 0);
+	ram41256_setup_pio(5, 0);
     sleep_ms(10);
 
-    for (u32 i=0; i < 100; i++)
+	u32 j=0;
+
+    for (u32 i=0; i < 131072; ++i)
 	{
-        ram4164_ram_write(i, 1);
-        if (ram4164_ram_read(i) == 0)
-			lcd7789_Fill(0, 0, 240, 135, 0x52bf);
+		if (j != ((i >> 14) & 1))
+		{
+			j = (i >> 14) & 1;
+			lcd7789_Fill(0, 0, 240, 135, (j) ? 0x57ea : 0x0540);
+		}
 
-		ram4164_ram_write(i, 0);
-
-        if (ram4164_ram_read(i) != 0)
+        ram41256_ram_write(i, 1);
+        if (ram41256_ram_read(i) != 1)
+		{
 			lcd7789_Fill(0, 0, 240, 135, 0x52bf);
+			break;
+		}
+
+		ram41256_ram_write(i, 0);
+
+        if (ram41256_ram_read(i) != 0)
+		{
+			lcd7789_Fill(0, 0, 240, 135, 0x52bf);
+			break;
+		}
     }
 
 	while(true)
