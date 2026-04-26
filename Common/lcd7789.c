@@ -318,7 +318,7 @@ void lcd7789_DrawIcon(uint16_t sx, uint16_t sy, const ico_def_t *ico)
 static void st7789_gpio_init()
 {
     // Set up GPIO for SPI0
-    spi_init(spi0, 70 * 1000 * 1000);
+    spi_init(spi0, 50 * 1000 * 1000);
     spi_set_format(spi0, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
     gpio_set_function(PIN_SPI_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SPI_DO, GPIO_FUNC_SPI);
@@ -358,6 +358,5 @@ void lcd7789_Init()
 {
     st7789_gpio_init();
     st7789_disp_init(40, 53, 240, 135);
-    lcd7789_Fill(0, 0, 240, 70, COLOR_BLUE); // 0x001F); // Clear screen
-    lcd7789_Fill(0, 71, 240, 135, COLOR_GREEN); // 0x001F); // Clear screen
+    lcd7789_Fill(0, 0, 240, 135, 0x001F); // Clear screen
 }

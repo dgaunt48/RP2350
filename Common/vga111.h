@@ -14,6 +14,8 @@
 #define TERMINAL_CHARS_WIDE		(VGA_RESOLUTION_X >> 3)
 #define TERMINAL_CHARS_HIGH		(VGA_RESOLUTION_Y >> 3)
 
+enum rgb111Colours {RGB111_BLACK, RGB111_RED, RGB111_GREEN, RGB111_YELLOW, RGB111_BLUE, RGB111_MAGENTA, RGB111_CYAN, RGB111_WHITE};
+
 extern const u8 g_aHexTable[];
 
 void vga_Init(const u32 uPinRGB, const u32 uPinHSync, const u32 uPinVSync);
