@@ -1,7 +1,6 @@
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-
 #ifndef __vga111_h_included
 #define __vga111_h_included
 
@@ -14,6 +13,8 @@
 #define VGA_RESOLUTION_Y  		(480)
 #define TERMINAL_CHARS_WIDE		(VGA_RESOLUTION_X >> 3)
 #define TERMINAL_CHARS_HIGH		(VGA_RESOLUTION_Y >> 3)
+
+enum rgb111Colours {RGB111_BLACK, RGB111_RED, RGB111_GREEN, RGB111_YELLOW, RGB111_BLUE, RGB111_MAGENTA, RGB111_CYAN, RGB111_WHITE};
 
 extern const u8 g_aHexTable[];
 

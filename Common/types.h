@@ -8,9 +8,11 @@
 
 #include <stdbool.h>
 
-typedef unsigned char   u8;
-typedef unsigned short  u16;
-typedef unsigned int    u32;
+typedef unsigned char       u8;
+typedef unsigned short      u16;
+typedef unsigned int        u32;
+typedef unsigned long long  u64;
+
 
 #define __not_in_flash_func(func_name)   __not_in_flash(__STRING(func_name)) func_name
 
