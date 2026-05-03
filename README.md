@@ -14,8 +14,5 @@ Simple RP2350b dev board with 40 level shifted gpio pins and 3 bit VGA output.
 
 ![Working Board](RP2350b_40GPIO/Images/Board.jpg?raw=true "Working Board")
 
-## VIA_6522
-Software emulated 6522 VIA IC - Has timing issues but will run the Vic20 Keyboard.
-
 ## VIA_6522_Tester
 Program to test functionality and behaviour of a 6522 VIA IC.
