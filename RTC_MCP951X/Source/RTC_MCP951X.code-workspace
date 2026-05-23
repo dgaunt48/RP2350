@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../../RP2350/Common"
+		}
+	],
+	"settings": {
+		"stm32-for-vscode.makePath": false
+	}
+}
