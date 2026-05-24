@@ -29,25 +29,50 @@ enum board_pins
 int main()
 {
 	stdio_init_all();
-
+	
 	vga_Init(PIN_RED, PIN_HSYNC, PIN_VSYNC);
 	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
 	vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
 
 	if (RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
 	{
-		vga_FilledRect(10, 10, 20, 20, RGB111_CYAN);
+		if (RTC_IsRunning())
+		{
+			vga_FilledRect(10, 10, 20, 20, RGB111_GREEN);
+		}
+		else
+		{
+			rtc_time rtcCurrentTime;
+			*(u8*)&rtcCurrentTime.m_Hours = 0x14;
+			*(u8*)&rtcCurrentTime.m_Minutes = 0x15;
+			*(u8*)&rtcCurrentTime.m_Seconds = 0x30;
+			*(u8*)&rtcCurrentTime.m_Hundredths = 0x00;
+			RTC_SetTime(rtcCurrentTime, true);
+			
+			vga_FilledRect(10, 10, 20, 20, RGB111_RED);
+		}
 	}
 
 	// s_rtcTime.m_bOutputSquareWave = true;
 	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
-	// s_rtcTime.m_bStartOscillator = true;
-
 	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
-	// if (RTC_WriteSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1))
 
 	while(true)
 	{
+		u32 uTimePosX = 80;
+		u32 uTimePosY = 80;
+		const u8 uTimeColour = RGB111_YELLOW;
+		rtc_time rtcCurrentTime = RTC_GetTime();
+
+		vga_DrawPetsciiChar(uTimePosX + 0,  uTimePosY, '0' + rtcCurrentTime.m_Hours.m_uTens, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 8,  uTimePosY, '0' + rtcCurrentTime.m_Hours.m_uOnes, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 24, uTimePosY, '0' + rtcCurrentTime.m_Minutes.m_uTens, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 32, uTimePosY, '0' + rtcCurrentTime.m_Minutes.m_uOnes, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 48, uTimePosY, '0' + rtcCurrentTime.m_Seconds.m_uTens, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 56, uTimePosY, '0' + rtcCurrentTime.m_Seconds.m_uOnes, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 72, uTimePosY, '0' + rtcCurrentTime.m_Hundredths.m_uTens, uTimeColour);
+		vga_DrawPetsciiChar(uTimePosX + 80, uTimePosY, '0' + rtcCurrentTime.m_Hundredths.m_uOnes, uTimeColour);
+
 		sleep_ms(16);
 	}
 }

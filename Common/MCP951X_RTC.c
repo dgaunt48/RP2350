@@ -4,7 +4,10 @@
 //---- v1.0 - Connect a MCP951X	Real Time Clock To The RP2350                                 ----
 //------------------------------------------------------------------------------------------------
 
+#include <stdio.h>
+#include "pico/stdlib.h"
 #include "hardware/gpio.h"
+
 #include "MCP951X_RTC.h"
 
 enum rtc_commands
@@ -57,6 +60,8 @@ enum rtc_registers
 	RTC_PWRUP_MTH
 };
 
+#define RTC_TIME_MASK (0x3F7F7FFF)
+
 typedef struct
 {
 	union
@@ -92,10 +97,18 @@ typedef struct
 		u8	m_uRegHours;
 		struct
 		{
-			u8	m_uHoursOnes : 4;
-			u8	m_uHoursTens : 2;
-			u8	m_bHours24_12 : 1;
-			u8	m_bTrimSign : 1;
+			u8	m_uTime12_HoursOnes : 4;
+			u8	m_uTime12_HoursTens : 1;
+			u8	m_bTime12_AM_PM : 1;
+			u8	m_bTime12_Hours24 : 1;
+			u8	m_bTime12_bTrimSign : 1;
+		};
+		struct
+		{
+			u8	m_uTime24_HoursOnes : 4;
+			u8	m_uTime24_HoursTens : 2;
+			u8	m_bTime24_Hours24 : 1;
+			u8	m_bTime24_bTrimSign : 1;
 		};
 	};
 	union
@@ -198,6 +211,33 @@ bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
+rtc_time RTC_GetTime(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegHundredths, RTC_REG_HSEC, 4);
+	u32 uCurrentTime = *(u32*)&s_rtcTime.m_uRegHundredths & RTC_TIME_MASK;
+	return *(rtc_time*)&uCurrentTime;
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_SetTime(const rtc_time uTime, const bool bStart)
+{
+	RTC_Stop();			// Stop The Clock If It Is Running
+
+	// Extreme Type Safety ;)
+	*(u32*)&s_rtcTime.m_uRegHundredths = (*(u32*)&s_rtcTime.m_uRegHundredths & ~RTC_TIME_MASK) | (*(u32*)&uTime & RTC_TIME_MASK);
+
+	// I Only Support 24 Hour Time At The Moment.
+	s_rtcTime.m_bTime24_Hours24 = true;
+	s_rtcTime.m_bStartOscillator = bStart;
+
+	return RTC_WriteSRAM((void*)&s_rtcTime.m_uRegHundredths, RTC_REG_HSEC, 4);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
 bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, const u32 uTxPin, const u32 uRxPin, const u32 uCsPin)
 {
     assert(0 == s_pSpi);
@@ -219,6 +259,44 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 	gpio_clr_mask(s_uCsMask);
 	delay_40ns();
 	gpio_set_mask(s_uCsMask);
+	sleep_ms(16);
 
 	return RTC_ReadSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_Start(void)
+{
+	if (RTC_IsRunning())
+		return false;
+
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
+	s_rtcTime.m_bStartOscillator = true;
+
+	return RTC_WriteSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_Stop(void)
+{
+	if (!RTC_IsRunning())
+		return false;
+
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
+	s_rtcTime.m_bStartOscillator = false;
+
+	return RTC_WriteSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_IsRunning(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 1);
+	return s_rtcTime.m_bFlagOscillatorRunning;
 }
