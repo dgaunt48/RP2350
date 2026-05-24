@@ -11,9 +11,11 @@
 
 #include "vga111.h"
 
-#define SPI_BAUD_RATE	(5 * 1000 * 1000)	/* 5Mhz */
+#define SPI_BAUD_RATE	(10 * 1000 * 1000)	/* 10Mhz */
 
 //32.7695 with 10pf load caps
+
+//Zeller's Congruence To Get Day Of Week From Date
 
 enum board_pins
 {
@@ -35,6 +37,14 @@ enum rtc_commands
 	RTC_IDWRITE = 50,
 	RTC_IDREAD,
 	RTC_CLRRAM = 84
+};
+
+enum rtc_output_frequency
+{
+	RCT_OUTPUT_SQUARE_WAVE_1Hz = 0,
+	RCT_OUTPUT_SQUARE_WAVE_4096Hz,
+	RCT_OUTPUT_SQUARE_WAVE_8192Hz,
+	RCT_OUTPUT_SQUARE_WAVE_32768Hz
 };
 
 enum rtc_registers
@@ -71,34 +81,142 @@ enum rtc_registers
 	RTC_PWRUP_MTH
 };
 
+typedef struct
+{
+	union
+	{
+		u8	m_uRegHundredths;
+		struct
+		{
+			u8	m_uHundredthsOnes : 4;
+			u8	m_uHundredthsTens : 4;
+		};
+	};
+	union
+	{
+		u8	m_uRegSeconds;
+		struct
+		{
+			u8	m_uSecondsOnes : 4;
+			u8	m_uSecondsTens : 3;
+			u8	m_bStartOscillator : 1;
+		};
+	};
+	union
+	{
+		u8	m_uRegMinutes;
+		struct
+		{
+			u8	m_uMinutesOnes : 4;
+			u8	m_uMinutesTens : 3;
+		};
+	};
+	union
+	{
+		u8	m_uRegHours;
+		struct
+		{
+			u8	m_uHoursOnes : 4;
+			u8	m_uHoursTens : 2;
+			u8	m_bHours24_12 : 1;
+			u8	m_bTrimSign : 1;
+		};
+	};
+	union
+	{
+		u8	m_uRegWeekDay;
+		struct
+		{
+			u8	m_uDayOfWeek : 3;
+			u8	m_bBatteryEnable : 1;
+			u8	m_bFlagPowerFail : 1;
+			u8	m_bFlagOscillatorRunning : 1;
+		};
+	};
+	union
+	{
+		u8	m_uRegDate;
+		struct
+		{
+			u8	m_uDateOnes : 4;
+			u8	m_uDateTens : 2;
+		};
+	};
+	union
+	{
+		u8	m_uRegMonth;
+		struct
+		{
+			u8	m_uMonthOnes : 4;
+			u8	m_uMonthTens : 1;
+			u8	m_bLeapYear : 1;
+		};
+	};
+	union
+	{
+		u8	m_uRegYear;
+		struct
+		{
+			u8	m_uYearOnes : 4;
+			u8	m_uYearTens : 4;
+		};
+	};
+	union
+	{
+		u8	m_uRegControl;
+		struct
+		{
+			u8	m_uSquareWaveOutputFrequency : 2;
+			u8  m_bCoarseTrim : 1;
+			u8	m_bExternalClock : 1;		// Signal On X1 - Not Using Crystal.
+			u8	m_bEnableAlarm0 : 1;
+			u8	m_bEnableAlarm1 : 1;
+			u8	m_bOutputSquareWave : 1;
+		};
+	};
+	u8	m_uOscillatorTrim;
+} RTC_Time;
+
+static_assert(sizeof(RTC_Time) == 10);
+static volatile RTC_Time s_rtcTime;
+
 static spi_inst_t* s_pSpi = 0;
 static u32 s_uCsMask = 0;
 
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-const u8 RTC_ReadRegister(const u8 uRegister)
+const bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
 {
-    delay_40ns();
+    assert(0 != s_pSpi);
+
+	delay_40ns();
 	gpio_clr_mask(s_uCsMask);
-	u32 uRecieveBuffer;
-	const u32 uSendBuffer = (u32)uRegister << 8 | RTC_READ;
-	const u32 uBytesWritten = spi_write_read_blocking(s_pSpi, (u8*)&uSendBuffer, (u8*)&uRecieveBuffer, 3);
+
+	const u16 uSendBuffer = (u16)uRTCAddress << 8 | RTC_READ;
+	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 2);
+	const u32 uBytesRead = spi_read_blocking(s_pSpi, 0, (u8*)pDestination, uLength);
 	gpio_set_mask(s_uCsMask);
-	return(uRecieveBuffer >> 16);
+
+	return ((uHeaderLength + uBytesRead) == (uLength + 2));
 }
 
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-bool RTC_WriteRegister(const u8 uRegister, const u8 uValue)
+const bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 {
-    delay_40ns();
+    assert(0 != s_pSpi);
+
+	delay_40ns();
 	gpio_clr_mask(s_uCsMask);
-	const u32 uSendBuffer = (u32)uValue << 16 | (u32)uRegister << 8 | RTC_WRITE;
-	const u32 uBytesWritten = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 3);
+
+	const u16 uSendBuffer = (u16)uRTCAddress << 8 | RTC_WRITE;
+	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 2);
+	const u32 uBytesWritten = spi_write_blocking(s_pSpi, (u8*)pSource, uLength);
 	gpio_set_mask(s_uCsMask);
-	return(3 == uBytesWritten);
+
+	return ((uHeaderLength + uBytesWritten) == (uLength + 2));
 }
 
 //------------------------------------------------------------------------------------------------
@@ -126,24 +244,7 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 	delay_40ns();
 	gpio_set_mask(s_uCsMask);
 
-
-/*	
-	u32 uSendBuffer = 0;
-	u32 uRecieveBuffer = 0;
-
-	gpio_clr_mask(s_uCsMask);
-	uSendBuffer = 0xDA7E2000 | RTC_WRITE;
-	spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 4);
-	gpio_set_mask(s_uCsMask);
-    delay_40ns();
-
-	gpio_clr_mask(s_uCsMask);
-	uSendBuffer = 0x2000 | RTC_READ;
-	spi_write_read_blocking(s_pSpi, (u8*)&uSendBuffer, (u8*)&uRecieveBuffer, 4);
-	gpio_set_mask(s_uCsMask);
-    delay_40ns();
-*/
-	return true;
+	return RTC_ReadSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
 }
 
 //------------------------------------------------------------------------------------------------
@@ -159,50 +260,15 @@ int main()
 
 	RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS);
 
-	RTC_WriteRegister(0x08, 0b01000011);
-	if (RTC_WriteRegister(0x01, 0b10000000))
+	// s_rtcTime.m_bOutputSquareWave = true;
+	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
+	// s_rtcTime.m_bStartOscillator = true;
+
+	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+	// if (RTC_WriteSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1))
 	{
 		vga_FilledRect(10, 10, 20, 20, RGB111_YELLOW);
 	}
-
-
-
-	// if(SpiNorFlash_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
-	// {
-	// 	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
-
-	// 	if (SpiNorFlash_Verify(0, iCE40_BitStream_size, iCE40_BitStream))
-	// 	{
-	// 		// Flash Data Verified And Correct - Nothing To Do !!!
-	// 		vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
-	// 		vga_DrawString(4, 4, "FPGA Binary Valid.", RGB111_GREEN);
-	// 	}
-	// 	else
-	// 	{
-	// 		// Erase Flash Memory And Attempt To Rewrite Data.
-	// 		SpiNorFlash_Erase64kBlock(0);
-	// 		SpiNorFlash_Erase64kBlock(1);
-	// 		SpiNorFlash_Erase64kBlock(2);
-
-	// 		if (SpiNorFlash_Write(0, iCE40_BitStream_size, iCE40_BitStream, true))
-	// 		{
-	// 			// Rewrite Success - Flash Data Is Valid And Up To Date.
-	// 			vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
-	// 			vga_DrawString(4, 4, "FPGA Binary Updated And Valid.", RGB111_GREEN);
-	// 		}
-	// 		else
-	// 		{
-	// 			// Rewrite Failed - Flash Data Is Corrupt!!!
-	// 			vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_RED);
-	// 			vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
-	// 			vga_DrawString(4, 4, "FPGA Binary Corrupt!!!", RGB111_RED);
-	// 		}
-	// 	}
-	// }
-	// else
-	// {
-	// 	vga_DrawString(4, 4, "Can't Communicate With Flash ROM!!!", RGB111_RED);
-	// }
 
 	while(true)
 	{
