@@ -38,7 +38,8 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(RTC_MCP951X
-    RTC_MCP951X.c
+    RealTimeClock.c
+    ${COMMON_DIR}/MCP951X_RTC.c
     ${COMMON_DIR}/vga111.c
     ${COMMON_DIR}/VicChars.c
 )

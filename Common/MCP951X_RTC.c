@@ -1,27 +1,11 @@
 //------------------------------------------------------------------------------------------------
-//---- RTC_MCP951X.c (C) 2026 Dave Gaunt                                                      ----
+//---- MCP951X_RTC.c (C) 2026 Dave Gaunt                                                      ----
 //------------------------------------------------------------------------------------------------
 //---- v1.0 - Connect a MCP951X	Real Time Clock To The RP2350                                 ----
 //------------------------------------------------------------------------------------------------
 
-#include <stdio.h>
-#include "types.h"
-#include "pico/stdlib.h"
-#include "hardware/spi.h"
-
-#include "vga111.h"
-
-#define SPI_BAUD_RATE	(10 * 1000 * 1000)	/* 10Mhz */
-
-//32.7695 with 10pf load caps
-
-//Zeller's Congruence To Get Day Of Week From Date
-
-enum board_pins
-{
-	PIN_RED = 0, PIN_GREEN, PIN_BLUE, PIN_HSYNC, PIN_VSYNC,
-	PIN_SPI_MOSI = 16, PIN_SPI_CS, PIN_SPI_CLOCK, PIN_SPI_MISO
-};
+#include "hardware/gpio.h"
+#include "MCP951X_RTC.h"
 
 enum rtc_commands
 {
@@ -37,14 +21,6 @@ enum rtc_commands
 	RTC_IDWRITE = 50,
 	RTC_IDREAD,
 	RTC_CLRRAM = 84
-};
-
-enum rtc_output_frequency
-{
-	RCT_OUTPUT_SQUARE_WAVE_1Hz = 0,
-	RCT_OUTPUT_SQUARE_WAVE_4096Hz,
-	RCT_OUTPUT_SQUARE_WAVE_8192Hz,
-	RCT_OUTPUT_SQUARE_WAVE_32768Hz
 };
 
 enum rtc_registers
@@ -186,7 +162,7 @@ static u32 s_uCsMask = 0;
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-const bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
+bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
 {
     assert(0 != s_pSpi);
 
@@ -204,7 +180,7 @@ const bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLeng
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-const bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
+bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 {
     assert(0 != s_pSpi);
 
@@ -245,33 +221,4 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 	gpio_set_mask(s_uCsMask);
 
 	return RTC_ReadSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
-}
-
-//------------------------------------------------------------------------------------------------
-//----                                                                                        ----
-//------------------------------------------------------------------------------------------------
-int main()
-{
-	stdio_init_all();
-
-	vga_Init(PIN_RED, PIN_HSYNC, PIN_VSYNC);
-	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
-	vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
-
-	RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS);
-
-	// s_rtcTime.m_bOutputSquareWave = true;
-	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
-	// s_rtcTime.m_bStartOscillator = true;
-
-	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
-	// if (RTC_WriteSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1))
-	{
-		vga_FilledRect(10, 10, 20, 20, RGB111_YELLOW);
-	}
-
-	while(true)
-	{
-		sleep_ms(16);
-	}
 }
