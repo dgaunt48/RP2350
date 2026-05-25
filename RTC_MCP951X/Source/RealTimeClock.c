@@ -15,12 +15,21 @@
 
 //32.7695 with 10pf load caps
 
-//Zeller's Congruence To Get Day Of Week From Date
-
 enum board_pins
 {
 	PIN_RED = 0, PIN_GREEN, PIN_BLUE, PIN_HSYNC, PIN_VSYNC,
 	PIN_SPI_MOSI = 16, PIN_SPI_CS, PIN_SPI_CLOCK, PIN_SPI_MISO
+};
+
+const char aWeekDays[7][4] =
+{
+	"SUN",
+	"MON",
+	"TUE",
+	"WED",
+	"THU",
+	"FRI",
+	"SAT"
 };
 
 //------------------------------------------------------------------------------------------------
@@ -42,6 +51,24 @@ int main()
 		}
 		else
 		{
+			rtc_date rtcCurrentDate;
+
+			// Sunday Janurary 1st 2006 (Non Leap Year)
+//			*(u8*)&rtcCurrentDate.m_Date = 0x01;
+//			*(u8*)&rtcCurrentDate.m_Month = 0x01;
+//			*(u8*)&rtcCurrentDate.m_Year = 0x06;
+
+			// Tuesday July 4th 2023 (Non Leap Year)
+//			*(u8*)&rtcCurrentDate.m_Date = 0x04;
+//			*(u8*)&rtcCurrentDate.m_Month = 0x07;
+//			*(u8*)&rtcCurrentDate.m_Year = 0x23;
+
+			// Thursday Feburary 29th 2024 (Leap Year)
+			*(u8*)&rtcCurrentDate.m_Date = 0x29;
+			*(u8*)&rtcCurrentDate.m_Month = 0x02;
+			*(u8*)&rtcCurrentDate.m_Year = 0x24;
+			RTC_SetDate(rtcCurrentDate);
+
 			rtc_time rtcCurrentTime;
 			*(u8*)&rtcCurrentTime.m_Hours = 0x14;
 			*(u8*)&rtcCurrentTime.m_Minutes = 0x15;
@@ -53,25 +80,51 @@ int main()
 		}
 	}
 
-	// s_rtcTime.m_bOutputSquareWave = true;
-	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
-	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+	char szString[64];
 
 	while(true)
 	{
-		u32 uTimePosX = 80;
-		u32 uTimePosY = 80;
-		const u8 uTimeColour = RGB111_YELLOW;
-		rtc_time rtcCurrentTime = RTC_GetTime();
+		rtc_date rtcCurrentDate = RTC_GetDate();
+		szString[0] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][0];
+		szString[1] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][1];
+		szString[2] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][2];
+		szString[3] = ' ';
+		szString[4] = '0' + rtcCurrentDate.m_Date.m_uTens;
+		szString[5] = '0' + rtcCurrentDate.m_Date.m_uOnes;
+		szString[6] = '/';
+		szString[7] = '0' + rtcCurrentDate.m_Month.m_uTens;
+		szString[8] = '0' + rtcCurrentDate.m_Month.m_uOnes;
+		szString[9] = '/';
+		szString[10] = '2';
+		szString[11] = '0';
+		szString[12] = '0' + rtcCurrentDate.m_Year.m_uTens;
+		szString[13] = '0' + rtcCurrentDate.m_Year.m_uOnes;
+		szString[14] = 0;
+		vga_DrawString(10, 10, szString, RGB111_YELLOW);
 
-		vga_DrawPetsciiChar(uTimePosX + 0,  uTimePosY, '0' + rtcCurrentTime.m_Hours.m_uTens, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 8,  uTimePosY, '0' + rtcCurrentTime.m_Hours.m_uOnes, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 24, uTimePosY, '0' + rtcCurrentTime.m_Minutes.m_uTens, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 32, uTimePosY, '0' + rtcCurrentTime.m_Minutes.m_uOnes, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 48, uTimePosY, '0' + rtcCurrentTime.m_Seconds.m_uTens, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 56, uTimePosY, '0' + rtcCurrentTime.m_Seconds.m_uOnes, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 72, uTimePosY, '0' + rtcCurrentTime.m_Hundredths.m_uTens, uTimeColour);
-		vga_DrawPetsciiChar(uTimePosX + 80, uTimePosY, '0' + rtcCurrentTime.m_Hundredths.m_uOnes, uTimeColour);
+		rtc_time rtcCurrentTime = RTC_GetTime();
+		szString[0] = '0' + rtcCurrentTime.m_Hours.m_uTens;
+		szString[1] = '0' + rtcCurrentTime.m_Hours.m_uOnes;
+		szString[2] = ':';
+		szString[3] = '0' + rtcCurrentTime.m_Minutes.m_uTens;
+		szString[4] = '0' + rtcCurrentTime.m_Minutes.m_uOnes;
+		szString[5] = ':';
+		szString[6] = '0' + rtcCurrentTime.m_Seconds.m_uTens;
+		szString[7] = '0' + rtcCurrentTime.m_Seconds.m_uOnes;
+		szString[8] = '.';
+		szString[9] = '0' + rtcCurrentTime.m_Hundredths.m_uTens;
+		szString[10] = '0' + rtcCurrentTime.m_Hundredths.m_uOnes;
+		szString[11] = 0;
+		vga_DrawString(10, 12, szString, RGB111_YELLOW);
+
+		if (rtcCurrentDate.m_bLeapYear)
+		{
+			vga_DrawString(10, 14, "Leap Year = YES", RGB111_YELLOW);
+		}
+		else
+		{
+			vga_DrawString(10, 14, "Leap Year = NO", RGB111_YELLOW);
+		}
 
 		sleep_ms(16);
 	}

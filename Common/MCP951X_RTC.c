@@ -61,6 +61,7 @@ enum rtc_registers
 };
 
 #define RTC_TIME_MASK (0x3F7F7FFF)
+#define RTC_DATE_MASK (0xFF1F3F07)
 
 typedef struct
 {
@@ -118,7 +119,7 @@ typedef struct
 		{
 			u8	m_uDayOfWeek : 3;
 			u8	m_bBatteryEnable : 1;
-			u8	m_bFlagPowerFail : 1;
+			u8	m_bPowerFail : 1;
 			u8	m_bFlagOscillatorRunning : 1;
 		};
 	};
@@ -138,7 +139,7 @@ typedef struct
 		{
 			u8	m_uMonthOnes : 4;
 			u8	m_uMonthTens : 1;
-			u8	m_bLeapYear : 1;
+			u8	m_bFlagLeapYear : 1;
 		};
 	};
 	union
@@ -211,10 +212,72 @@ bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
+rtc_date RTC_GetDate(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 4);
+	const u32 uCurrentDate = (*(u32*)&s_rtcTime.m_uRegWeekDay & RTC_DATE_MASK) | (((u32)s_rtcTime.m_bFlagLeapYear & 1) << 3);
+	return *(rtc_date*)&uCurrentDate;
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_SetDate(const rtc_date uDate)
+{
+	const bool bWasRunning = RTC_IsRunning();
+
+	if (bWasRunning)
+	{
+		// Stop The Clock And Wait For m_bFlagOscillatorRunning to Clear
+		while (RTC_IsRunning())
+			RTC_Stop();
+	}
+
+	// Set The Year First
+	RTC_WriteSRAM((void*)&uDate.m_Year, RTC_REG_YEAR, 1);
+
+	// Read The Current Settings As Battery Enable And Other Flags Are Stored Here.
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 3);
+
+	// Extreme Type Safety ;)
+	*(u32*)&s_rtcTime.m_uRegWeekDay = (*(u32*)&s_rtcTime.m_uRegWeekDay & ~RTC_DATE_MASK) | (*(u32*)&uDate & RTC_DATE_MASK);
+
+	// Date Will Be Rejected By MCP951X As We Are Not Currently In A Leap Year
+	if ((*(u8*)&uDate.m_Month == 0x02) && (*(u8*)&uDate.m_Date == 0x29) && (!s_rtcTime.m_bFlagLeapYear))
+		s_rtcTime.m_uDateOnes = 8;
+
+	const int q = (s_rtcTime.m_uDateTens * 10) + s_rtcTime.m_uDateOnes;
+	int m = (s_rtcTime.m_uMonthTens * 10) + s_rtcTime.m_uMonthOnes;
+	int y = 2000 + (s_rtcTime.m_uYearTens * 10) + s_rtcTime.m_uYearOnes;		// Y2K1 Bug !!!
+
+	if (m < 3)
+	{
+		// Move Janurary And Feburary The The End Of The Previous Year.
+		m += 12;
+		--y;
+	}
+
+	// Claus Tøndering adaption of Zeller's congruence to calculate the day of the week
+	const int c = y / 100;
+	const int h = (q + (31 * (m - 2)) / 12 + y + (y >> 2) - c + (c >> 2)) % 7;
+	s_rtcTime.m_uDayOfWeek = (h + 7) % 7;
+
+	// Write The New Date While Keeping Other Flags.
+	const bool bReturnValue = RTC_WriteSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 4);
+
+	if (bWasRunning)
+		RTC_Start();
+
+	return bReturnValue;
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
 rtc_time RTC_GetTime(void)
 {
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegHundredths, RTC_REG_HSEC, 4);
-	u32 uCurrentTime = *(u32*)&s_rtcTime.m_uRegHundredths & RTC_TIME_MASK;
+	const u32 uCurrentTime = *(u32*)&s_rtcTime.m_uRegHundredths & RTC_TIME_MASK;
 	return *(rtc_time*)&uCurrentTime;
 }
 
@@ -223,7 +286,9 @@ rtc_time RTC_GetTime(void)
 //------------------------------------------------------------------------------------------------
 bool RTC_SetTime(const rtc_time uTime, const bool bStart)
 {
-	RTC_Stop();			// Stop The Clock If It Is Running
+	// Stop The Clock And Wait For m_bFlagOscillatorRunning to Clear
+	while (RTC_IsRunning())
+		RTC_Stop();
 
 	// Extreme Type Safety ;)
 	*(u32*)&s_rtcTime.m_uRegHundredths = (*(u32*)&s_rtcTime.m_uRegHundredths & ~RTC_TIME_MASK) | (*(u32*)&uTime & RTC_TIME_MASK);
@@ -300,3 +365,7 @@ bool RTC_IsRunning(void)
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 1);
 	return s_rtcTime.m_bFlagOscillatorRunning;
 }
+
+	// s_rtcTime.m_bOutputSquareWave = true;
+	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
+	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
