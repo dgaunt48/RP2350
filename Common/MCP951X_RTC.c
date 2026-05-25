@@ -65,6 +65,14 @@ enum rtc_registers
 
 typedef struct
 {
+	u8	m_bWriteInProgress : 1;
+	u8	m_bWriteEnable : 1;
+	u8	m_uBlockProtect : 2;
+} RTC_Status;
+static_assert(sizeof(RTC_Status) == 1);
+
+typedef struct
+{
 	union
 	{
 		u8	m_uRegHundredths;
@@ -174,7 +182,7 @@ static spi_inst_t* s_pSpi = 0;
 static u32 s_uCsMask = 0;
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- rtc Read                                                                               ----
 //------------------------------------------------------------------------------------------------
 bool rtcRead(void* pDestination, const u16 uCommand, const u8 uLength)
 {
@@ -190,20 +198,107 @@ bool rtcRead(void* pDestination, const u16 uCommand, const u8 uLength)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- rtc Write                                                                              ----
 //------------------------------------------------------------------------------------------------
-bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
+bool rtcWrite(void* pSource, const u16 uCommand, const u8 uLength)
 {
     assert(0 != s_pSpi);
 
 	delay_40ns();
 	gpio_clr_mask(s_uCsMask);
-	const u16 uSendBuffer = (u16)uRTCAddress << 8 | RTC_WRITE;
-	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 2);
+	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uCommand, 2);
 	const u32 uBytesWritten = spi_write_blocking(s_pSpi, (u8*)pSource, uLength);
 	gpio_set_mask(s_uCsMask);
 
 	return ((uHeaderLength + uBytesWritten) == (uLength + 2));
+
+}
+
+//------------------------------------------------------------------------------------------------
+//---- rtc Send Command		                                                                  ----
+//------------------------------------------------------------------------------------------------
+bool rtcSendCommand(const u16 uCommand, const u32 uLength)
+{
+    assert(0 != s_pSpi);
+
+	delay_40ns();
+	gpio_clr_mask(s_uCsMask);
+	const u32 uCommandLength = spi_write_blocking(s_pSpi, (u8*)&uCommand, uLength);
+	gpio_set_mask(s_uCsMask);
+
+	return (1 == uCommandLength);
+}
+
+//------------------------------------------------------------------------------------------------
+//---- rtc Get Status Register                                                                ----
+//------------------------------------------------------------------------------------------------
+RTC_Status rtcGetStatusRegister(void)
+{
+    assert(0 != s_pSpi);
+
+	delay_40ns();
+	gpio_clr_mask(s_uCsMask);
+	const u16 uCommand = RTC_SRREAD;
+	u8 aRecieveBuffer[2];
+	spi_write_read_blocking(s_pSpi, (u8*)&uCommand, &aRecieveBuffer[0], 2);
+	gpio_set_mask(s_uCsMask);
+
+	return *(RTC_Status*)&aRecieveBuffer[1];
+}
+
+//------------------------------------------------------------------------------------------------
+//---- rtc Wait EEPROM Write                                                                  ----
+//------------------------------------------------------------------------------------------------
+void rtcWaitEEPROMWrite(void)
+{
+	RTC_Status rtcStatus;
+
+	do {
+		// Takes About 5 Loops To Complete 1 Page Write.
+		rtcStatus = rtcGetStatusRegister();
+		sleep_ms(1);
+		
+	} while (rtcStatus.m_bWriteInProgress);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
+{
+	return rtcWrite(pSource, (u16)uRTCAddress << 8 | RTC_WRITE, uLength);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_WriteEEPROM(void* pSource, const u8 uPageIndex)
+{
+	rtcSendCommand(RTC_EEWREN, 1);
+	if (rtcWrite(pSource, (u16)uPageIndex << (RTC_PAGE_SHIFT + 8) | RTC_EEWRITE, 1 << RTC_PAGE_SHIFT))
+	{
+		rtcWaitEEPROMWrite();
+		return true;
+	}
+
+	return false;
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_WriteID(void* pSource, const u8 uPageIndex)
+{
+	rtcSendCommand(RTC_EEWREN, 1);
+	rtcSendCommand(0x5500 | RTC_UNLOCK, 2);
+	rtcSendCommand(0xAA00 | RTC_UNLOCK, 2);
+	if (rtcWrite(pSource, (u16)uPageIndex << (RTC_PAGE_SHIFT + 8) | RTC_IDWRITE, 1 << RTC_PAGE_SHIFT))
+	{
+		rtcWaitEEPROMWrite();
+		return true;
+	}
+
+	return false;
 }
 
 //------------------------------------------------------------------------------------------------

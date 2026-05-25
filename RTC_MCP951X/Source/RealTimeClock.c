@@ -32,7 +32,7 @@ const char aWeekDays[7][4] =
 	"SAT"
 };
 
-static u8 s_aIOBuffer[16] = "Hello World!";
+static u8 s_aIOBuffer[16];
 
 //------------------------------------------------------------------------------------------------
 //---- ASCII to PetSCII                                                                       ----
@@ -84,7 +84,7 @@ void FormatHexDumpLine(u32 uCharX, u32 uCharY, const u32 uAddress, const u8* pLi
 int main()
 {
 	stdio_init_all();
-	
+
 	vga_Init(PIN_RED, PIN_HSYNC, PIN_VSYNC);
 	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
 	vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
@@ -93,6 +93,12 @@ int main()
 	{
 		if (!RTC_IsRunning())
 		{
+//			RTC_WriteID("- Hello ", 0);
+//			RTC_WriteID("World! -", 1);
+
+//			RTC_WriteEEPROM("This Is ", 1);
+//			RTC_WriteEEPROM("A Test..", 2);
+
 			rtc_date rtcCurrentDate;
 
 			// Sunday Janurary 1st 2006 (Non Leap Year)
@@ -125,7 +131,7 @@ int main()
 	RTC_ReadID(&s_aIOBuffer[8], 1);
 	FormatHexDumpLine(3, 6, 0, s_aIOBuffer, RGB111_WHITE, true);
 
-	u32 uLineIndex = 21;
+	u32 uLineIndex = 22;
 	vga_DrawString(11, uLineIndex, "SRAM", RGB111_YELLOW);
 	uLineIndex += 2;
 
@@ -172,7 +178,7 @@ int main()
 		szString[12] = '0' + rtcCurrentDate.m_Year.m_uTens;
 		szString[13] = '0' + rtcCurrentDate.m_Year.m_uOnes;
 		szString[14] = 0;
-		vga_DrawString(10, 12, szString, RGB111_YELLOW);
+		vga_DrawString(11, 12, szString, RGB111_CYAN);
 
 		rtc_time rtcCurrentTime = RTC_GetTime();
 		szString[0] = '0' + rtcCurrentTime.m_Hours.m_uTens;
@@ -187,15 +193,15 @@ int main()
 		szString[9] = '0' + rtcCurrentTime.m_Hundredths.m_uTens;
 		szString[10] = '0' + rtcCurrentTime.m_Hundredths.m_uOnes;
 		szString[11] = 0;
-		vga_DrawString(10, 14, szString, RGB111_YELLOW);
+		vga_DrawString(11, 14, szString, RGB111_CYAN);
 
 		if (rtcCurrentDate.m_bLeapYear)
 		{
-			vga_DrawString(10, 16, "Leap Year = YES", RGB111_YELLOW);
+			vga_DrawString(11, 16, "Leap Year = YES", RGB111_CYAN);
 		}
 		else
 		{
-			vga_DrawString(10, 16, "Leap Year = NO", RGB111_YELLOW);
+			vga_DrawString(11, 16, "Leap Year = NO", RGB111_CYAN);
 		}
 
 		sleep_ms(16);
