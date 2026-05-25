@@ -176,15 +176,13 @@ static u32 s_uCsMask = 0;
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
+bool rtcRead(void* pDestination, const u16 uCommand, const u8 uLength)
 {
     assert(0 != s_pSpi);
 
 	delay_40ns();
 	gpio_clr_mask(s_uCsMask);
-
-	const u16 uSendBuffer = (u16)uRTCAddress << 8 | RTC_READ;
-	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 2);
+	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uCommand, 2);
 	const u32 uBytesRead = spi_read_blocking(s_pSpi, 0, (u8*)pDestination, uLength);
 	gpio_set_mask(s_uCsMask);
 
@@ -200,13 +198,36 @@ bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 
 	delay_40ns();
 	gpio_clr_mask(s_uCsMask);
-
 	const u16 uSendBuffer = (u16)uRTCAddress << 8 | RTC_WRITE;
 	const u32 uHeaderLength = spi_write_blocking(s_pSpi, (u8*)&uSendBuffer, 2);
 	const u32 uBytesWritten = spi_write_blocking(s_pSpi, (u8*)pSource, uLength);
 	gpio_set_mask(s_uCsMask);
 
 	return ((uHeaderLength + uBytesWritten) == (uLength + 2));
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
+{
+	return rtcRead(pDestination, (u16)uRTCAddress << 8 | RTC_READ, uLength);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_ReadEEPROM(void* pDestination, const u8 uPageIndex)
+{
+	return rtcRead(pDestination, (u16)uPageIndex << (RTC_PAGE_SHIFT + 8) | RTC_EEREAD, 1 << RTC_PAGE_SHIFT);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+bool RTC_ReadID(void* pDestination, const u8 uPageIndex)
+{
+	return rtcRead(pDestination, (u16)uPageIndex << (RTC_PAGE_SHIFT + 8) | RTC_IDREAD, 1 << RTC_PAGE_SHIFT);
 }
 
 //------------------------------------------------------------------------------------------------

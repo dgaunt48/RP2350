@@ -7,6 +7,12 @@
 #include "types.h"
 #include "hardware/spi.h"
 
+#define RTC_SRAM_BASE 	(0x20)
+#define RTC_SRAM_SIZE 	(0x40)
+#define RTC_EEPROM_BASE	(0x00)
+#define RTC_EEPROM_SIZE	(0x80)		
+#define RTC_PAGE_SHIFT	(3)
+
 typedef struct
 {
 	u8	m_uOnes : 4;
@@ -67,5 +73,9 @@ bool RTC_SetTime(const rtc_time uTime, const bool bStart);
 
 bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength);
 bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength);
+
+bool RTC_ReadEEPROM(void* pDestination, const u8 uPageIndex);
+
+bool RTC_ReadID(void* pDestination, const u8 uPageIndex);
 
 #endif /* __MCP951X_RTC_h_included */
