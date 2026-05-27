@@ -182,6 +182,15 @@ static spi_inst_t* s_pSpi = 0;
 static u32 s_uCsMask = 0;
 
 //------------------------------------------------------------------------------------------------
+//---- rtc Is Running                                                                         ----
+//------------------------------------------------------------------------------------------------
+bool rtcIsRunning(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 1);
+	return s_rtcTime.m_bFlagOscillatorRunning;
+}
+
+//------------------------------------------------------------------------------------------------
 //---- rtc Read                                                                               ----
 //------------------------------------------------------------------------------------------------
 bool rtcRead(void* pDestination, const u16 uCommand, const u8 uLength)
@@ -340,12 +349,12 @@ rtc_date RTC_GetDate(void)
 //------------------------------------------------------------------------------------------------
 bool RTC_SetDate(const rtc_date uDate)
 {
-	const bool bWasRunning = RTC_IsRunning();
+	const bool bWasRunning = rtcIsRunning();
 
 	if (bWasRunning)
 	{
 		// Stop The Clock And Wait For m_bFlagOscillatorRunning to Clear
-		while (RTC_IsRunning())
+		while (rtcIsRunning())
 			RTC_Stop();
 	}
 
@@ -359,7 +368,7 @@ bool RTC_SetDate(const rtc_date uDate)
 	*(u32*)&s_rtcTime.m_uRegWeekDay = (*(u32*)&s_rtcTime.m_uRegWeekDay & ~RTC_DATE_MASK) | (*(u32*)&uDate & RTC_DATE_MASK);
 
 	// Date Will Be Rejected By MCP951X As We Are Not Currently In A Leap Year
-	if ((*(u8*)&uDate.m_Month == 0x02) && (*(u8*)&uDate.m_Date == 0x29) && (!s_rtcTime.m_bFlagLeapYear))
+	if ((uDate.m_uMonth == 0x02) && (uDate.m_uDate == 0x29) && (!s_rtcTime.m_bFlagLeapYear))
 		s_rtcTime.m_uDateOnes = 8;
 
 	const int q = (s_rtcTime.m_uDateTens * 10) + s_rtcTime.m_uDateOnes;
@@ -403,7 +412,7 @@ rtc_time RTC_GetTime(void)
 bool RTC_SetTime(const rtc_time uTime, const bool bStart)
 {
 	// Stop The Clock And Wait For m_bFlagOscillatorRunning to Clear
-	while (RTC_IsRunning())
+	while (rtcIsRunning())
 		RTC_Stop();
 
 	// Extreme Type Safety ;)
@@ -450,7 +459,7 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 //------------------------------------------------------------------------------------------------
 bool RTC_Start(void)
 {
-	if (RTC_IsRunning())
+	if (rtcIsRunning())
 		return false;
 
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
@@ -464,7 +473,7 @@ bool RTC_Start(void)
 //------------------------------------------------------------------------------------------------
 bool RTC_Stop(void)
 {
-	if (!RTC_IsRunning())
+	if (!rtcIsRunning())
 		return false;
 
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegSeconds, RTC_REG_SEC, 1);
@@ -476,11 +485,21 @@ bool RTC_Stop(void)
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-bool RTC_IsRunning(void)
+rtc_flags RTC_GetFlags(void)
 {
-	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 1);
-	return s_rtcTime.m_bFlagOscillatorRunning;
+	rtc_flags flags;
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 5);
+	flags.m_bOscillatorRunning = s_rtcTime.m_bFlagOscillatorRunning;
+	flags.m_bTrimEnabled = (0 == s_rtcTime.m_uOscillatorTrim) ? false : true;
+	flags.m_bOutputSquareWave = s_rtcTime.m_bOutputSquareWave;
+	flags.m_bPowerFail = s_rtcTime.m_bPowerFail;
+	flags.m_bBatteryEnabled = s_rtcTime.m_bBatteryEnable;
+	flags.m_bLeapYear = s_rtcTime.m_bFlagLeapYear;
+	flags.m_bAlarm0 = s_rtcTime.m_bEnableAlarm0;
+	flags.m_bAlarm1 = s_rtcTime.m_bEnableAlarm1;
+	return flags;
 }
+
 
 	// s_rtcTime.m_bOutputSquareWave = true;
 	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;

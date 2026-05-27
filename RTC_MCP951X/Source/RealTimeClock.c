@@ -15,6 +15,10 @@
 
 //32.7695 with 10pf load caps
 
+// 32769.5 * 60  = 1,966,170
+// 32768 * 60    = 1,966,080
+// ..170 - ..080  = 90 / 2 = 45;
+
 enum board_pins
 {
 	PIN_RED = 0, PIN_GREEN, PIN_BLUE, PIN_HSYNC, PIN_VSYNC,
@@ -81,7 +85,46 @@ void FormatHexDumpLine(u32 uCharX, u32 uCharY, const u32 uAddress, const u8* pLi
 //------------------------------------------------------------------------------------------------
 //----                                                                                        ----
 //------------------------------------------------------------------------------------------------
-int main()
+void DisplayDateTime(const u32 uCharX, const u32 uCharY, const char* pszString, const rtc_date rtcDate, const rtc_time rtcTime, const u8 uColour)
+{
+	char szString[128];
+	u32 uOffset = sprintf(szString, "%s    ", pszString);
+	szString[uOffset + 0 ] = aWeekDays[rtcDate.m_eDayOfWeek][0];
+	szString[uOffset + 1 ] = aWeekDays[rtcDate.m_eDayOfWeek][1];
+	szString[uOffset + 2 ] = aWeekDays[rtcDate.m_eDayOfWeek][2];
+	szString[uOffset + 3 ] = ' ';
+	szString[uOffset + 4 ] = '0' + rtcDate.m_Date.m_uTens;
+	szString[uOffset + 5 ] = '0' + rtcDate.m_Date.m_uOnes;
+	szString[uOffset + 6 ] = '/';
+	szString[uOffset + 7 ] = '0' + rtcDate.m_Month.m_uTens;
+	szString[uOffset + 8 ] = '0' + rtcDate.m_Month.m_uOnes;
+	szString[uOffset + 9 ] = '/';
+	szString[uOffset + 10] = '2';
+	szString[uOffset + 11] = '0';
+	szString[uOffset + 12] = '0' + rtcDate.m_Year.m_uTens;
+	szString[uOffset + 13] = '0' + rtcDate.m_Year.m_uOnes;
+	szString[uOffset + 14] = ' ';
+	szString[uOffset + 15] = ' ';
+	szString[uOffset + 16] = ' ';
+	szString[uOffset + 17] = '0' + rtcTime.m_Hours.m_uTens;
+	szString[uOffset + 18] = '0' + rtcTime.m_Hours.m_uOnes;
+	szString[uOffset + 19] = ':';
+	szString[uOffset + 20] = '0' + rtcTime.m_Minutes.m_uTens;
+	szString[uOffset + 21] = '0' + rtcTime.m_Minutes.m_uOnes;
+	szString[uOffset + 22] = ':';
+	szString[uOffset + 23] = '0' + rtcTime.m_Seconds.m_uTens;
+	szString[uOffset + 24] = '0' + rtcTime.m_Seconds.m_uOnes;
+	szString[uOffset + 25] = '.';
+	szString[uOffset + 26] = '0' + rtcTime.m_Hundredths.m_uTens;
+	szString[uOffset + 27] = '0' + rtcTime.m_Hundredths.m_uOnes;
+	szString[uOffset + 28] = 0;
+	vga_DrawString(uCharX, uCharY, szString, uColour);
+}
+
+//------------------------------------------------------------------------------------------------
+//---- Yep It's Main!                                                                         ----
+//------------------------------------------------------------------------------------------------
+int main(void)
 {
 	stdio_init_all();
 
@@ -91,7 +134,9 @@ int main()
 
 	if (RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
 	{
-		if (!RTC_IsRunning())
+		rtc_flags flags = RTC_GetFlags();
+
+		if (!flags.m_bOscillatorRunning)
 		{
 //			RTC_WriteID("- Hello ", 0);
 //			RTC_WriteID("World! -", 1);
@@ -102,36 +147,36 @@ int main()
 			rtc_date rtcCurrentDate;
 
 			// Sunday Janurary 1st 2006 (Non Leap Year)
-//			*(u8*)&rtcCurrentDate.m_Date = 0x01;
-//			*(u8*)&rtcCurrentDate.m_Month = 0x01;
-//			*(u8*)&rtcCurrentDate.m_Year = 0x06;
+//			rtcCurrentDate.m_uDate = 0x01;
+//			rtcCurrentDate.m_uMonth = 0x01;
+//			rtcCurrentDate.m_uYear = 0x06;
 
 			// Tuesday July 4th 2023 (Non Leap Year)
-//			*(u8*)&rtcCurrentDate.m_Date = 0x04;
-//			*(u8*)&rtcCurrentDate.m_Month = 0x07;
-//			*(u8*)&rtcCurrentDate.m_Year = 0x23;
+//			rtcCurrentDate.m_uDate = 0x04;
+//			rtcCurrentDate.m_uMonth = 0x07;
+//			rtcCurrentDate.m_uYear = 0x23;
 
 			// Thursday Feburary 29th 2024 (Leap Year)
-			*(u8*)&rtcCurrentDate.m_Date = 0x29;
-			*(u8*)&rtcCurrentDate.m_Month = 0x02;
-			*(u8*)&rtcCurrentDate.m_Year = 0x24;
+			rtcCurrentDate.m_uDate = 0x29;
+			rtcCurrentDate.m_uMonth = 0x02;
+			rtcCurrentDate.m_uYear = 0x24;
 			RTC_SetDate(rtcCurrentDate);
 
 			rtc_time rtcCurrentTime;
-			*(u8*)&rtcCurrentTime.m_Hours = 0x14;
-			*(u8*)&rtcCurrentTime.m_Minutes = 0x15;
-			*(u8*)&rtcCurrentTime.m_Seconds = 0x30;
-			*(u8*)&rtcCurrentTime.m_Hundredths = 0x00;
+			rtcCurrentTime.m_uHours = 0x14;
+			rtcCurrentTime.m_uMinutes = 0x15;
+			rtcCurrentTime.m_uSeconds = 0x30;
+			rtcCurrentTime.m_uHundredths = 0x00;
 			RTC_SetTime(rtcCurrentTime, true);
 		}
 	}
 
-	vga_DrawString(11, 4, "Protected EEPROM", RGB111_YELLOW);
+	vga_DrawString(11, 3, "Protected EEPROM", RGB111_YELLOW);
 	RTC_ReadID(&s_aIOBuffer[0], 0);
 	RTC_ReadID(&s_aIOBuffer[8], 1);
-	FormatHexDumpLine(3, 6, 0, s_aIOBuffer, RGB111_WHITE, true);
+	FormatHexDumpLine(3, 5, 0, s_aIOBuffer, RGB111_WHITE, true);
 
-	u32 uLineIndex = 22;
+	u32 uLineIndex = 33;
 	vga_DrawString(11, uLineIndex, "SRAM", RGB111_YELLOW);
 	uLineIndex += 2;
 
@@ -158,51 +203,64 @@ int main()
 		++uLineIndex;
 	}
 
-	char szString[64];
+	char szString[128];
 
 	while(true)
 	{
+		rtc_flags flags = RTC_GetFlags();
+
+		sprintf(
+			szString,
+			"Oscillator Running = %s  Trim Enabled = %s",
+			flags.m_bOscillatorRunning ? "True " : "False",
+			flags.m_bTrimEnabled ? "True " : "False"
+		);
+		vga_DrawString(11, 9, szString, RGB111_MAGENTA);
+
+		sprintf(
+			szString,
+			"Output Square Wave = %s",
+			flags.m_bOutputSquareWave ? "True " : "False"
+		);
+		vga_DrawString(11, 11, szString, RGB111_MAGENTA);
+
+		sprintf(
+			szString, 
+			"Battery Enable = %s      Power Fail = %s",
+			flags.m_bBatteryEnabled ? "True " : "False",
+			flags.m_bPowerFail ? "True " : "False"
+		);
+		vga_DrawString(11, 13, szString, RGB111_MAGENTA);
+
+		sprintf(
+			szString, 
+			"Leap Year = %s",
+			flags.m_bLeapYear ? "True " : "False"
+		);
+		vga_DrawString(11, 15, szString, RGB111_MAGENTA);
+
 		rtc_date rtcCurrentDate = RTC_GetDate();
-		szString[0] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][0];
-		szString[1] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][1];
-		szString[2] = aWeekDays[rtcCurrentDate.m_eDayOfWeek][2];
-		szString[3] = ' ';
-		szString[4] = '0' + rtcCurrentDate.m_Date.m_uTens;
-		szString[5] = '0' + rtcCurrentDate.m_Date.m_uOnes;
-		szString[6] = '/';
-		szString[7] = '0' + rtcCurrentDate.m_Month.m_uTens;
-		szString[8] = '0' + rtcCurrentDate.m_Month.m_uOnes;
-		szString[9] = '/';
-		szString[10] = '2';
-		szString[11] = '0';
-		szString[12] = '0' + rtcCurrentDate.m_Year.m_uTens;
-		szString[13] = '0' + rtcCurrentDate.m_Year.m_uOnes;
-		szString[14] = 0;
-		vga_DrawString(11, 12, szString, RGB111_CYAN);
-
 		rtc_time rtcCurrentTime = RTC_GetTime();
-		szString[0] = '0' + rtcCurrentTime.m_Hours.m_uTens;
-		szString[1] = '0' + rtcCurrentTime.m_Hours.m_uOnes;
-		szString[2] = ':';
-		szString[3] = '0' + rtcCurrentTime.m_Minutes.m_uTens;
-		szString[4] = '0' + rtcCurrentTime.m_Minutes.m_uOnes;
-		szString[5] = ':';
-		szString[6] = '0' + rtcCurrentTime.m_Seconds.m_uTens;
-		szString[7] = '0' + rtcCurrentTime.m_Seconds.m_uOnes;
-		szString[8] = '.';
-		szString[9] = '0' + rtcCurrentTime.m_Hundredths.m_uTens;
-		szString[10] = '0' + rtcCurrentTime.m_Hundredths.m_uOnes;
-		szString[11] = 0;
-		vga_DrawString(11, 14, szString, RGB111_CYAN);
+		DisplayDateTime(11, 20, "Current Time", rtcCurrentDate, rtcCurrentTime, RGB111_CYAN);
 
-		if (rtcCurrentDate.m_bLeapYear)
+		if (flags.m_bAlarm0)
 		{
-			vga_DrawString(11, 16, "Leap Year = YES", RGB111_CYAN);
 		}
 		else
 		{
-			vga_DrawString(11, 16, "Leap Year = NO", RGB111_CYAN);
+			vga_DrawString(11, 22, "Alarm 0         Disabled", RGB111_CYAN);
 		}
+
+		if (flags.m_bAlarm1)
+		{
+		}
+		else
+		{
+			vga_DrawString(11, 24, "Alarm 1         Disabled", RGB111_CYAN);
+		}
+
+		vga_DrawString(11, 26, "Power Down Time ----", RGB111_CYAN);
+		vga_DrawString(11, 28, "Power  Up  Time ----", RGB111_CYAN);
 
 		sleep_ms(16);
 	}
