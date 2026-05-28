@@ -65,9 +65,9 @@ enum rtc_registers
 
 typedef struct
 {
-	u8	m_bWriteInProgress : 1;
-	u8	m_bWriteEnable : 1;
-	u8	m_uBlockProtect : 2;
+	u8	m_bWriteInProgress 	: 1;
+	u8	m_bWriteEnable 		: 1;
+	u8	m_uBlockProtect 	: 2;
 } RTC_Status;
 static_assert(sizeof(RTC_Status) == 1);
 
@@ -87,9 +87,9 @@ typedef struct
 		u8	m_uRegSeconds;
 		struct
 		{
-			u8	m_uSecondsOnes : 4;
-			u8	m_uSecondsTens : 3;
-			u8	m_bStartOscillator : 1;
+			u8	m_uSecondsOnes 		: 4;
+			u8	m_uSecondsTens 		: 3;
+			u8	m_bStartOscillator 	: 1;
 		};
 	};
 	union
@@ -108,16 +108,16 @@ typedef struct
 		{
 			u8	m_uTime12_HoursOnes : 4;
 			u8	m_uTime12_HoursTens : 1;
-			u8	m_bTime12_AM_PM : 1;
-			u8	m_bTime12_Hours24 : 1;
-			u8	m_bTime12_bTrimSign : 1;
+			u8	m_bTime12_AM_PM 	: 1;
+			u8	m_bTime12_Hours24	: 1;
+			u8	m_bTrimSign			: 1;
 		};
 		struct
 		{
 			u8	m_uTime24_HoursOnes : 4;
 			u8	m_uTime24_HoursTens : 2;
-			u8	m_bTime24_Hours24 : 1;
-			u8	m_bTime24_bTrimSign : 1;
+			u8	m_bTime24_Hours24 	: 1;
+			u8						: 1;
 		};
 	};
 	union
@@ -125,10 +125,10 @@ typedef struct
 		u8	m_uRegWeekDay;
 		struct
 		{
-			u8	m_uDayOfWeek : 3;
-			u8	m_bBatteryEnable : 1;
-			u8	m_bPowerFail : 1;
-			u8	m_bFlagOscillatorRunning : 1;
+			u8	m_uDayOfWeek 				: 3;
+			u8	m_bBatteryEnable 			: 1;
+			u8	m_bPowerFail 				: 1;
+			u8	m_bFlagOscillatorRunning 	: 1;
 		};
 	};
 	union
@@ -145,9 +145,9 @@ typedef struct
 		u8	m_uRegMonth;
 		struct
 		{
-			u8	m_uMonthOnes : 4;
-			u8	m_uMonthTens : 1;
-			u8	m_bFlagLeapYear : 1;
+			u8	m_uMonthOnes 		: 4;
+			u8	m_uMonthTens 		: 1;
+			u8	m_bFlagLeapYear 	: 1;
 		};
 	};
 	union
@@ -165,14 +165,14 @@ typedef struct
 		struct
 		{
 			u8	m_uSquareWaveOutputFrequency : 2;
-			u8  m_bCoarseTrim : 1;
-			u8	m_bExternalClock : 1;		// Signal On X1 - Not Using Crystal.
-			u8	m_bEnableAlarm0 : 1;
-			u8	m_bEnableAlarm1 : 1;
+			u8  m_bCoarseTrim 		: 1;
+			u8	m_bExternalClock 	: 1;		// Signal On X1 - Not Using Crystal.
+			u8	m_bEnableAlarm0 	: 1;
+			u8	m_bEnableAlarm1 	: 1;
 			u8	m_bOutputSquareWave : 1;
 		};
 	};
-	u8	m_uOscillatorTrim;
+	u8	m_uRegOscillatorTrim;
 } RTC_Time;
 
 static_assert(sizeof(RTC_Time) == 10);
@@ -271,7 +271,7 @@ void rtcWaitEEPROMWrite(void)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Write SRAM                                                                         ----
 //------------------------------------------------------------------------------------------------
 bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 {
@@ -279,7 +279,7 @@ bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Write EEPROM                                                                       ----
 //------------------------------------------------------------------------------------------------
 bool RTC_WriteEEPROM(void* pSource, const u8 uPageIndex)
 {
@@ -294,7 +294,7 @@ bool RTC_WriteEEPROM(void* pSource, const u8 uPageIndex)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Write ID                                                                           ----
 //------------------------------------------------------------------------------------------------
 bool RTC_WriteID(void* pSource, const u8 uPageIndex)
 {
@@ -311,7 +311,7 @@ bool RTC_WriteID(void* pSource, const u8 uPageIndex)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Read SRAM   		                                                                  ----
 //------------------------------------------------------------------------------------------------
 bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
 {
@@ -319,7 +319,7 @@ bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Read EEPROM                                                                        ----
 //------------------------------------------------------------------------------------------------
 bool RTC_ReadEEPROM(void* pDestination, const u8 uPageIndex)
 {
@@ -327,7 +327,7 @@ bool RTC_ReadEEPROM(void* pDestination, const u8 uPageIndex)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Read ID                                                                            ----
 //------------------------------------------------------------------------------------------------
 bool RTC_ReadID(void* pDestination, const u8 uPageIndex)
 {
@@ -335,7 +335,7 @@ bool RTC_ReadID(void* pDestination, const u8 uPageIndex)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Get Date                                                                           ----
 //------------------------------------------------------------------------------------------------
 rtc_date RTC_GetDate(void)
 {
@@ -345,7 +345,7 @@ rtc_date RTC_GetDate(void)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Set Date                                                                           ----
 //------------------------------------------------------------------------------------------------
 bool RTC_SetDate(const rtc_date uDate)
 {
@@ -397,7 +397,7 @@ bool RTC_SetDate(const rtc_date uDate)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Get Time                                                                           ----
 //------------------------------------------------------------------------------------------------
 rtc_time RTC_GetTime(void)
 {
@@ -407,7 +407,7 @@ rtc_time RTC_GetTime(void)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Set Time                                                                           ----
 //------------------------------------------------------------------------------------------------
 bool RTC_SetTime(const rtc_time uTime, const bool bStart)
 {
@@ -426,7 +426,7 @@ bool RTC_SetTime(const rtc_time uTime, const bool bStart)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Initialise                                                                         ----
 //------------------------------------------------------------------------------------------------
 bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, const u32 uTxPin, const u32 uRxPin, const u32 uCsPin)
 {
@@ -455,7 +455,7 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Start                                                                              ----
 //------------------------------------------------------------------------------------------------
 bool RTC_Start(void)
 {
@@ -469,7 +469,7 @@ bool RTC_Start(void)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC Stop                                                                               ----
 //------------------------------------------------------------------------------------------------
 bool RTC_Stop(void)
 {
@@ -483,14 +483,14 @@ bool RTC_Stop(void)
 }
 
 //------------------------------------------------------------------------------------------------
-//----                                                                                        ----
+//---- RTC GetFlags                                                                           ----
 //------------------------------------------------------------------------------------------------
 rtc_flags RTC_GetFlags(void)
 {
 	rtc_flags flags;
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegWeekDay, RTC_REG_WKDAY, 5);
 	flags.m_bOscillatorRunning = s_rtcTime.m_bFlagOscillatorRunning;
-	flags.m_bTrimEnabled = (0 == s_rtcTime.m_uOscillatorTrim) ? false : true;
+	flags.m_bTrimEnabled = (0 == s_rtcTime.m_uRegOscillatorTrim) ? false : true;
 	flags.m_bOutputSquareWave = s_rtcTime.m_bOutputSquareWave;
 	flags.m_bPowerFail = s_rtcTime.m_bPowerFail;
 	flags.m_bBatteryEnabled = s_rtcTime.m_bBatteryEnable;
@@ -500,7 +500,113 @@ rtc_flags RTC_GetFlags(void)
 	return flags;
 }
 
+//------------------------------------------------------------------------------------------------
+//---- RTC Square Wave Enable                                                                 ----
+//------------------------------------------------------------------------------------------------
+bool RTC_SquareWaveEnable(const enum rtc_output_frequency eFreq)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+	s_rtcTime.m_bOutputSquareWave = true;
+	s_rtcTime.m_uSquareWaveOutputFrequency = eFreq;
+	RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+	return RTC_Start();
+}
 
-	// s_rtcTime.m_bOutputSquareWave = true;
-	// s_rtcTime.m_uSquareWaveOutputFrequency = RCT_OUTPUT_SQUARE_WAVE_32768Hz;
-	// RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+//------------------------------------------------------------------------------------------------
+//---- RTC Square Wave Disable                                                                ----
+//------------------------------------------------------------------------------------------------
+bool RTC_SquareWaveDisable(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+
+	if (s_rtcTime.m_bOutputSquareWave)
+	{
+		s_rtcTime.m_bOutputSquareWave = false;
+		RTC_WriteSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+		return true;
+	}
+
+	return false;
+}
+
+//------------------------------------------------------------------------------------------------
+//---- RTC Square Wave Get Frequency                                                          ----
+//------------------------------------------------------------------------------------------------
+enum rtc_output_frequency RTC_SquareWaveGetFrequency(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegControl, RTC_REG_CONTROL, 1);
+	return s_rtcTime.m_uSquareWaveOutputFrequency;
+}
+
+//------------------------------------------------------------------------------------------------
+//---- RTC Oscillator Trim Enable						                                      ----
+//------------------------------------------------------------------------------------------------
+//---- 32769.5 * 60   = 1,966,170															  ----
+//---- 32768 * 60     = 1,966,080															  ----
+//----                ..170 - ..080  = 90 / 2 = 45											  ----
+//------------------------------------------------------------------------------------------------
+bool RTC_OscillatorTrimEnable(const fixed_24_8 fMeasuredFrequency)
+{
+	if ((fMeasuredFrequency.m_uInteger < 32760) || (fMeasuredFrequency.m_uInteger > 32776))
+		return false;			// Please Select Better Crystal Load Capacitors - Can't Compensate For This !!!
+
+	fixed_24_8 fDesiredFrequency;
+	fDesiredFrequency.m_uInteger = 32768;
+	fDesiredFrequency.m_uFraction = 0;
+
+	if (fMeasuredFrequency.m_uFixed == fDesiredFrequency.m_uFixed)
+		return RTC_OscillatorTrimDisable();
+
+	fixed_24_8 fResult;
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegHours, RTC_REG_HOUR, 1);
+
+	if (fMeasuredFrequency.m_uFixed > fDesiredFrequency.m_uFixed)
+	{
+		s_rtcTime.m_bTrimSign = 0;
+		fResult.m_uFixed = (fMeasuredFrequency.m_uFixed * 60) - (fDesiredFrequency.m_uFixed * 60);
+	}
+	else
+	{
+		s_rtcTime.m_bTrimSign = 1;
+		fResult.m_uFixed = (fDesiredFrequency.m_uFixed * 60) - (fMeasuredFrequency.m_uFixed * 60);
+	}
+
+	RTC_WriteSRAM((void*)&s_rtcTime.m_uRegHours, RTC_REG_HOUR, 1);
+	s_rtcTime.m_uRegOscillatorTrim = fResult.m_uInteger >> 1;
+	return RTC_WriteSRAM((void*)&s_rtcTime.m_uRegOscillatorTrim, RTC_REG_OSCTRIM, 1);
+}
+
+//------------------------------------------------------------------------------------------------
+//---- RTC Oscillator Trim Disable				                                              ----
+//------------------------------------------------------------------------------------------------
+bool RTC_OscillatorTrimDisable(void)
+{
+	s_rtcTime.m_uRegOscillatorTrim = 0;
+	RTC_WriteSRAM((void*)&s_rtcTime.m_uRegOscillatorTrim, RTC_REG_OSCTRIM, 1);
+}
+
+//------------------------------------------------------------------------------------------------
+//---- RTC Oscillator Trim Get PPM					                                          ----
+//------------------------------------------------------------------------------------------------
+fixed_24_8 RTC_OscillatorTrimGetPPM(void)
+{
+	fixed_24_8 fTrimPPM;
+	fTrimPPM.m_uFixed = 0;
+
+	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegOscillatorTrim, RTC_REG_OSCTRIM, 1);
+
+	// Trim Disabled
+	if (0 != s_rtcTime.m_uRegOscillatorTrim)
+	{
+		fTrimPPM.m_uInteger = s_rtcTime.m_uRegOscillatorTrim;
+		fTrimPPM.m_uFraction = 0;
+		fTrimPPM.m_uFixed *= 2000;
+		fTrimPPM.m_uFixed /= 1966;
+
+		RTC_ReadSRAM((void*)&s_rtcTime.m_uRegHours, RTC_REG_HOUR, 1);
+		if (0 == s_rtcTime.m_bTrimSign)
+			fTrimPPM.m_uInteger = -fTrimPPM.m_uInteger;
+	}
+
+	return fTrimPPM;
+}

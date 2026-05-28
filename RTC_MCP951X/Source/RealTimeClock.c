@@ -134,6 +134,14 @@ int main(void)
 
 	if (RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
 	{
+		RTC_SquareWaveEnable(RCT_OUTPUT_SQUARE_WAVE_4096Hz);
+		RTC_SquareWaveDisable();
+
+		fixed_24_8 fMeasuredFrequency;
+		fMeasuredFrequency.m_uInteger = 32769;
+		fMeasuredFrequency.m_uFraction = 128;
+		RTC_OscillatorTrimEnable(fMeasuredFrequency);
+
 		rtc_flags flags = RTC_GetFlags();
 
 		if (!flags.m_bOscillatorRunning)
@@ -209,20 +217,52 @@ int main(void)
 	{
 		rtc_flags flags = RTC_GetFlags();
 
-		sprintf(
-			szString,
-			"Oscillator Running = %s  Trim Enabled = %s",
-			flags.m_bOscillatorRunning ? "True " : "False",
-			flags.m_bTrimEnabled ? "True " : "False"
-		);
-		vga_DrawString(11, 9, szString, RGB111_MAGENTA);
+		if (flags.m_bTrimEnabled)
+		{
+			fixed_24_8 mTrimPPM;
+			mTrimPPM = RTC_OscillatorTrimGetPPM();
+			u32 uTrimFraction = (mTrimPPM.m_uFraction * 100) >> 8;
 
-		sprintf(
-			szString,
-			"Output Square Wave = %s",
-			flags.m_bOutputSquareWave ? "True " : "False"
-		);
-		vga_DrawString(11, 11, szString, RGB111_MAGENTA);
+			sprintf(
+				szString,
+				"Oscillator %s, Trim %d.%d PPM",
+				flags.m_bOscillatorRunning ? "Running" : "Stopped",
+				mTrimPPM.m_uInteger, uTrimFraction
+			);
+			vga_DrawString(11, 9, szString, RGB111_MAGENTA);
+		}
+		else
+		{
+			sprintf(
+				szString,
+				"Oscillator %s, Trim Disabled        ",
+				flags.m_bOscillatorRunning ? "Running" : "Stopped"
+			);
+			vga_DrawString(11, 9, szString, RGB111_MAGENTA);
+		}
+
+		if (flags.m_bOutputSquareWave)
+		{
+			const char szFrequency[4][8] =
+			{
+				"1",
+				"4096",
+				"8192",
+				"32768"
+			};
+
+			sprintf(
+				szString,
+				"Output Square Wave At %sHz",
+				szFrequency[RTC_SquareWaveGetFrequency()]
+			);
+
+			vga_DrawString(11, 11, szString, RGB111_MAGENTA);
+		}
+		else
+		{
+			vga_DrawString(11, 11, "Output Square Wave Disabled       ", RGB111_MAGENTA);
+		}
 
 		sprintf(
 			szString, 

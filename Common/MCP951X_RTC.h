@@ -15,13 +15,6 @@
 
 typedef struct
 {
-	u8	m_uOnes : 4;
-	u8	m_uTens : 4;
-} rtc_bcd_pair;
-static_assert(sizeof(rtc_bcd_pair) == 1);
-
-typedef struct
-{
 	u8	m_bOscillatorRunning	: 1;
 	u8	m_bTrimEnabled			: 1;
 	u8	m_bOutputSquareWave		: 1;
@@ -35,23 +28,23 @@ static_assert(sizeof(rtc_flags) == 1);
 
 typedef struct
 {
-	u8	m_eDayOfWeek : 3;
-	u8	m_bLeapYear  : 1;
-	u8				 : 4;
+	u8	m_eDayOfWeek 	: 3;
+	u8	m_bLeapYear 	: 1;
+	u8				 	: 4;
 	union
 	{
 		u8				m_uDate;
-		rtc_bcd_pair 	m_Date;
+		bcd_pair 		m_Date;
 	};
 	union
 	{
 		u8				m_uMonth;
-		rtc_bcd_pair 	m_Month;
+		bcd_pair 		m_Month;
 	};
 	union
 	{
 		u8				m_uYear;
-		rtc_bcd_pair 	m_Year;
+		bcd_pair 		m_Year;
 	};
 } rtc_date;
 static_assert(sizeof(rtc_date) == 4);
@@ -60,23 +53,23 @@ typedef struct
 {
 	union
 	{
-		u8				m_uHundredths;
-		rtc_bcd_pair 	m_Hundredths;
+		u8			m_uHundredths;
+		bcd_pair 	m_Hundredths;
 	};
 	union
 	{
-		u8				m_uSeconds;
-		rtc_bcd_pair 	m_Seconds;
+		u8			m_uSeconds;
+		bcd_pair 	m_Seconds;
 	};
 	union
 	{
-		u8				m_uMinutes;
-		rtc_bcd_pair 	m_Minutes;
+		u8			m_uMinutes;
+		bcd_pair 	m_Minutes;
 	};
 	union
 	{
-		u8				m_uHours;
-		rtc_bcd_pair 	m_Hours;
+		u8			m_uHours;
+		bcd_pair 	m_Hours;
 	};
 } rtc_time;
 static_assert(sizeof(rtc_time) == 4);
@@ -104,7 +97,16 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 
 bool RTC_Start(void);
 bool RTC_Stop(void);
+
 rtc_flags RTC_GetFlags(void);
+
+bool RTC_SquareWaveEnable(const enum rtc_output_frequency eFreq);
+bool RTC_SquareWaveDisable(void);
+enum rtc_output_frequency RTC_SquareWaveGetFrequency(void);
+
+bool RTC_OscillatorTrimEnable(const fixed_24_8 fMeasuredFrequency);
+bool RTC_OscillatorTrimDisable(void);
+fixed_24_8 RTC_OscillatorTrimGetPPM(void);
 
 rtc_date RTC_GetDate(void);
 bool RTC_SetDate(const rtc_date uDate);
