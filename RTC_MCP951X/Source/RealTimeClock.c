@@ -134,11 +134,12 @@ int main(void)
 
 	if (RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
 	{
+//		RTC_ClearSRAM();
 		RTC_SquareWaveEnable(RCT_OUTPUT_SQUARE_WAVE_4096Hz);
 		RTC_SquareWaveDisable();
 
 		fixed_24_8 fMeasuredFrequency;
-		fMeasuredFrequency.m_uInteger = 32769;
+		fMeasuredFrequency.m_nInteger = 32769;
 		fMeasuredFrequency.m_uFraction = 128;
 		RTC_OscillatorTrimEnable(fMeasuredFrequency);
 
@@ -227,7 +228,7 @@ int main(void)
 				szString,
 				"Oscillator %s, Trim %d.%d PPM",
 				flags.m_bOscillatorRunning ? "Running" : "Stopped",
-				mTrimPPM.m_uInteger, uTrimFraction
+				mTrimPPM.m_nInteger, uTrimFraction
 			);
 			vga_DrawString(11, 9, szString, RGB111_MAGENTA);
 		}

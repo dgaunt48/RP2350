@@ -116,6 +116,7 @@ bool RTC_SetTime(const rtc_time uTime, const bool bStart);
 
 bool RTC_ReadSRAM(void* pDestination, const u8 uRTCAddress, const u8 uLength);
 bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength);
+bool RTC_ClearSRAM(void);
 
 bool RTC_ReadEEPROM(void* pDestination, const u8 uPageIndex);
 bool RTC_WriteEEPROM(void* pSource, const u8 uPageIndex);

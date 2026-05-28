@@ -30,7 +30,7 @@ typedef struct
         struct
         {
             u32 m_uFraction : 8;
-            int m_uInteger : 24;
+            int m_nInteger : 24;
         };
     };
 } fixed_24_8;

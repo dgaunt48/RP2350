@@ -279,6 +279,14 @@ bool RTC_WriteSRAM(void* pSource, const u8 uRTCAddress, const u8 uLength)
 }
 
 //------------------------------------------------------------------------------------------------
+//---- RTC Clear SRAM                                                                         ----
+//------------------------------------------------------------------------------------------------
+bool RTC_ClearSRAM(void)
+{
+	return rtcSendCommand(RTC_CLRRAM, 2);
+}
+
+//------------------------------------------------------------------------------------------------
 //---- RTC Write EEPROM                                                                       ----
 //------------------------------------------------------------------------------------------------
 bool RTC_WriteEEPROM(void* pSource, const u8 uPageIndex)
@@ -547,11 +555,11 @@ enum rtc_output_frequency RTC_SquareWaveGetFrequency(void)
 //------------------------------------------------------------------------------------------------
 bool RTC_OscillatorTrimEnable(const fixed_24_8 fMeasuredFrequency)
 {
-	if ((fMeasuredFrequency.m_uInteger < 32760) || (fMeasuredFrequency.m_uInteger > 32776))
+	if ((fMeasuredFrequency.m_nInteger < 32760) || (fMeasuredFrequency.m_nInteger > 32776))
 		return false;			// Please Select Better Crystal Load Capacitors - Can't Compensate For This !!!
 
 	fixed_24_8 fDesiredFrequency;
-	fDesiredFrequency.m_uInteger = 32768;
+	fDesiredFrequency.m_nInteger = 32768;
 	fDesiredFrequency.m_uFraction = 0;
 
 	if (fMeasuredFrequency.m_uFixed == fDesiredFrequency.m_uFixed)
@@ -572,7 +580,7 @@ bool RTC_OscillatorTrimEnable(const fixed_24_8 fMeasuredFrequency)
 	}
 
 	RTC_WriteSRAM((void*)&s_rtcTime.m_uRegHours, RTC_REG_HOUR, 1);
-	s_rtcTime.m_uRegOscillatorTrim = fResult.m_uInteger >> 1;
+	s_rtcTime.m_uRegOscillatorTrim = fResult.m_nInteger >> 1;
 	return RTC_WriteSRAM((void*)&s_rtcTime.m_uRegOscillatorTrim, RTC_REG_OSCTRIM, 1);
 }
 
@@ -598,14 +606,14 @@ fixed_24_8 RTC_OscillatorTrimGetPPM(void)
 	// Trim Disabled
 	if (0 != s_rtcTime.m_uRegOscillatorTrim)
 	{
-		fTrimPPM.m_uInteger = s_rtcTime.m_uRegOscillatorTrim;
+		fTrimPPM.m_nInteger = s_rtcTime.m_uRegOscillatorTrim;
 		fTrimPPM.m_uFraction = 0;
 		fTrimPPM.m_uFixed *= 2000;
 		fTrimPPM.m_uFixed /= 1966;
 
 		RTC_ReadSRAM((void*)&s_rtcTime.m_uRegHours, RTC_REG_HOUR, 1);
 		if (0 == s_rtcTime.m_bTrimSign)
-			fTrimPPM.m_uInteger = -fTrimPPM.m_uInteger;
+			fTrimPPM.m_nInteger = -fTrimPPM.m_nInteger;
 	}
 
 	return fTrimPPM;
