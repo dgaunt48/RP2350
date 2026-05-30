@@ -19337,7 +19337,7 @@
 				)
 			)
 		)
-		(property "Value" "8pf"
+		(property "Value" "10pf"
 			(at 187.96 195.58 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -24216,7 +24216,7 @@
 				)
 			)
 		)
-		(property "Value" "8pf"
+		(property "Value" "10pf"
 			(at 187.96 210.82 90)
 			(show_name no)
 			(do_not_autoplace no)
