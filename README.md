@@ -13,3 +13,6 @@ Vastly Cut Down. Just Learning How The RP2350 PIO Works.
 Simple RP2350b dev board with 40 level shifted gpio pins and 3 bit VGA output.
 
 ![Working Board](RP2350b_40GPIO/Images/Board.jpg?raw=true "Working Board")
+
+## RTC_MCP951X
+Connect a MCP951X Spi Real Time Clock to the Raspberry Pi Pico.
