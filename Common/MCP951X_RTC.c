@@ -90,12 +90,8 @@ typedef struct
 	};
 	union
 	{
-		u8	m_Minutes_Reg;
-		struct
-		{
-			u8	m_uOnes	: 4;
-			u8	m_uTens	: 3;
-		} m_Minutes;
+		u8		m_Minutes_Reg;
+		rtc_min m_Minutes;
 	};
 	union
 	{
@@ -112,11 +108,7 @@ typedef struct
 			u8	m_uTens 	: 1;
 			u8	m_bIsPM	 	: 1;
 		} m_Hours12;
-		struct
-		{
-			u8	m_uOnes 	: 4;
-			u8	m_uTens 	: 2;
-		} m_Hours24;
+		rtc_hour m_Hours24;
 	};
 	union
 	{
@@ -131,12 +123,8 @@ typedef struct
 	};
 	union
 	{
-		u8	m_Date_Reg;
-		struct
-		{
-			u8	m_uOnes : 4;
-			u8	m_uTens	: 2;
-		} m_Date;
+		u8		m_Date_Reg;
+		rtc_day	m_Date;
 	};
 	union
 	{
@@ -167,13 +155,33 @@ typedef struct
 		};
 	};
 	u8	m_uRegOscillatorTrim;
-} RTC_Time;
+} rtc_datetime;
+static_assert(sizeof(rtc_datetime) == 10);
 
-static_assert(sizeof(RTC_Time) == 10);
-static volatile RTC_Time s_rtcTime;
+static volatile rtc_datetime s_rtcTime;
+static volatile rtc_time_stamp s_rtcPowerUp;
+static volatile rtc_time_stamp s_rtcPowerDown;
 
 static spi_inst_t* s_pSpi = 0;
 static u32 s_uCsMask = 0;
+
+//------------------------------------------------------------------------------------------------
+//---- 			                                                                              ----
+//------------------------------------------------------------------------------------------------
+rtc_time_stamp RTC_GetPowerUpTime(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcPowerUp, RTC_PWRUP_MIN, sizeof(s_rtcPowerUp));
+	return s_rtcPowerUp;
+}
+
+//------------------------------------------------------------------------------------------------
+//---- 			                                                                              ----
+//------------------------------------------------------------------------------------------------
+rtc_time_stamp RTC_GetPowerDownTime(void)
+{
+	RTC_ReadSRAM((void*)&s_rtcPowerDown, RTC_PWRDN_MIN, sizeof(s_rtcPowerDown));
+	return s_rtcPowerDown;
+}
 
 //------------------------------------------------------------------------------------------------
 //---- rtc Is Running                                                                         ----
@@ -452,6 +460,10 @@ bool RTC_Initialise(spi_inst_t* pSpi, const u32 uBaudRate, const u32 uClkPin, co
 	gpio_set_mask(s_uCsMask);
 	sleep_ms(16);
 
+//	RTC_ReadSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
+//	s_rtcTime.m_bEnableAlarm1 = false;
+//	RTC_WriteSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
+
 	return RTC_ReadSRAM((void*)&s_rtcTime, 0, sizeof(s_rtcTime));
 }
 
@@ -603,7 +615,6 @@ fixed_24_8 RTC_OscillatorTrimGetPPM(void)
 {
 	fixed_24_8 fTrimPPM;
 	fTrimPPM.m_uFixed = 0;
-
 	RTC_ReadSRAM((void*)&s_rtcTime.m_uRegOscillatorTrim, RTC_REG_OSCTRIM, 1);
 
 	// Trim Disabled

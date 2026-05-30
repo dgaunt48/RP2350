@@ -88,7 +88,7 @@ void FormatHexDumpLine(u32 uCharX, u32 uCharY, const u32 uAddress, const u8* pLi
 void DisplayDateTime(const u32 uCharX, const u32 uCharY, const char* pszString, const rtc_date rtcDate, const rtc_time rtcTime, const u8 uColour)
 {
 	char szString[128];
-	u32 uOffset = sprintf(szString, "%s    ", pszString);
+	u32 uOffset = sprintf(szString, "%s     ", pszString);
 	szString[uOffset + 0 ] = aWeekDays[rtcDate.m_eDayOfWeek][0];
 	szString[uOffset + 1 ] = aWeekDays[rtcDate.m_eDayOfWeek][1];
 	szString[uOffset + 2 ] = aWeekDays[rtcDate.m_eDayOfWeek][2];
@@ -118,6 +118,34 @@ void DisplayDateTime(const u32 uCharX, const u32 uCharY, const char* pszString, 
 	szString[uOffset + 26] = '0' + rtcTime.m_Hundredths.m_uTens;
 	szString[uOffset + 27] = '0' + rtcTime.m_Hundredths.m_uOnes;
 	szString[uOffset + 28] = 0;
+	vga_DrawString(uCharX, uCharY, szString, uColour);
+}
+
+//------------------------------------------------------------------------------------------------
+//----                                                                                        ----
+//------------------------------------------------------------------------------------------------
+void DisplayTimeStamp(const u32 uCharX, const u32 uCharY, const char* pszString, const rtc_time_stamp rtcTimeStamp, const u8 uColour)
+{
+	char szString[128];
+	u32 uOffset = sprintf(szString, "%s  ", pszString);
+	szString[uOffset + 0 ] = aWeekDays[rtcTimeStamp.m_Month.m_eDayOfWeek][0];
+	szString[uOffset + 1 ] = aWeekDays[rtcTimeStamp.m_Month.m_eDayOfWeek][1];
+	szString[uOffset + 2 ] = aWeekDays[rtcTimeStamp.m_Month.m_eDayOfWeek][2];
+	szString[uOffset + 3 ] = ' ';
+	szString[uOffset + 3 ] = ' ';
+	szString[uOffset + 4 ] = '0' + rtcTimeStamp.m_Date.m_uTens;
+	szString[uOffset + 5 ] = '0' + rtcTimeStamp.m_Date.m_uOnes;
+	szString[uOffset + 6 ] = '/';
+	szString[uOffset + 7 ] = '0' + rtcTimeStamp.m_Month.m_uTens;
+	szString[uOffset + 8 ] = '0' + rtcTimeStamp.m_Month.m_uOnes;
+	szString[uOffset + 9] = ' ';
+	szString[uOffset + 10] = ' ';
+	szString[uOffset + 11] = '0' + rtcTimeStamp.m_Hours.m_uTens;
+	szString[uOffset + 12] = '0' + rtcTimeStamp.m_Hours.m_uOnes;
+	szString[uOffset + 13] = ':';
+	szString[uOffset + 14] = '0' + rtcTimeStamp.m_Minutes.m_uTens;
+	szString[uOffset + 15] = '0' + rtcTimeStamp.m_Minutes.m_uOnes;
+	szString[uOffset + 16] = 0;
 	vga_DrawString(uCharX, uCharY, szString, uColour);
 }
 
@@ -291,7 +319,7 @@ int main(void)
 		}
 		else
 		{
-			vga_DrawString(11, 22, "Alarm 0         Disabled", RGB111_CYAN);
+			vga_DrawString(11, 22, "Alarm 0          Disabled", RGB111_CYAN);
 		}
 
 		if (flags.m_bAlarm1)
@@ -299,11 +327,14 @@ int main(void)
 		}
 		else
 		{
-			vga_DrawString(11, 24, "Alarm 1         Disabled", RGB111_CYAN);
+			vga_DrawString(11, 24, "Alarm 1          Disabled", RGB111_CYAN);
 		}
 
-		vga_DrawString(11, 26, "Power Down Time ----", RGB111_CYAN);
-		vga_DrawString(11, 28, "Power  Up  Time ----", RGB111_CYAN);
+		rtc_time_stamp timePowerUp = RTC_GetPowerUpTime();
+		DisplayTimeStamp(11, 26, "Power Up Time  ", timePowerUp, RGB111_CYAN);
+
+		rtc_time_stamp timePowerDown = RTC_GetPowerDownTime();
+		DisplayTimeStamp(11, 28, "Power Down Time", timePowerDown, RGB111_CYAN);
 
 		sleep_ms(16);
 	}
