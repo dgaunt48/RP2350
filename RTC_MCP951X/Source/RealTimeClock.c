@@ -135,13 +135,14 @@ int main(void)
 	if (RTC_Initialise(spi0, SPI_BAUD_RATE, PIN_SPI_CLOCK, PIN_SPI_MOSI, PIN_SPI_MISO, PIN_SPI_CS))
 	{
 //		RTC_ClearSRAM();
-		RTC_SquareWaveEnable(RCT_OUTPUT_SQUARE_WAVE_4096Hz);
-		RTC_SquareWaveDisable();
+//		RTC_BatteryEnable(true);
+//		RTC_SquareWaveEnable(RCT_OUTPUT_SQUARE_WAVE_4096Hz);
+//		RTC_SquareWaveDisable();
 
-		fixed_24_8 fMeasuredFrequency;
-		fMeasuredFrequency.m_nInteger = 32769;
-		fMeasuredFrequency.m_uFraction = 128;
-		RTC_OscillatorTrimEnable(fMeasuredFrequency);
+//		fixed_24_8 fMeasuredFrequency;
+//		fMeasuredFrequency.m_nInteger = 32769;
+//		fMeasuredFrequency.m_uFraction = 128;
+//		RTC_OscillatorTrimEnable(fMeasuredFrequency);
 
 		rtc_flags flags = RTC_GetFlags();
 
@@ -160,21 +161,22 @@ int main(void)
 //			rtcCurrentDate.m_uMonth = 0x01;
 //			rtcCurrentDate.m_uYear = 0x06;
 
-			// Tuesday July 4th 2023 (Non Leap Year)
-//			rtcCurrentDate.m_uDate = 0x04;
-//			rtcCurrentDate.m_uMonth = 0x07;
-//			rtcCurrentDate.m_uYear = 0x23;
-
 			// Thursday Feburary 29th 2024 (Leap Year)
+//			rtcCurrentDate.m_uDate = 0x29;
+//			rtcCurrentDate.m_uMonth = 0x02;
+//			rtcCurrentDate.m_uYear = 0x24;
+
+			// Friday May 29th 2026 (Non Leap Year)
 			rtcCurrentDate.m_uDate = 0x29;
-			rtcCurrentDate.m_uMonth = 0x02;
-			rtcCurrentDate.m_uYear = 0x24;
+			rtcCurrentDate.m_uMonth = 0x05;
+			rtcCurrentDate.m_uYear = 0x26;
+
 			RTC_SetDate(rtcCurrentDate);
 
 			rtc_time rtcCurrentTime;
 			rtcCurrentTime.m_uHours = 0x14;
-			rtcCurrentTime.m_uMinutes = 0x15;
-			rtcCurrentTime.m_uSeconds = 0x30;
+			rtcCurrentTime.m_uMinutes = 0x51;
+			rtcCurrentTime.m_uSeconds = 0x00;
 			rtcCurrentTime.m_uHundredths = 0x00;
 			RTC_SetTime(rtcCurrentTime, true);
 		}

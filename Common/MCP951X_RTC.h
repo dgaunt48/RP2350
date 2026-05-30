@@ -99,6 +99,7 @@ bool RTC_Start(void);
 bool RTC_Stop(void);
 
 rtc_flags RTC_GetFlags(void);
+void RTC_BatteryEnable(const bool bState);
 
 bool RTC_SquareWaveEnable(const enum rtc_output_frequency eFreq);
 bool RTC_SquareWaveDisable(void);
