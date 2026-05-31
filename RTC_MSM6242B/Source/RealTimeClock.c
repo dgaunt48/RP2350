@@ -27,6 +27,66 @@ enum board_pins
 
 static_assert(21 == PIN_32768HZ_CLOCK, "Pico only exposes a few pins for external clocks!");
 
+enum registers_msm6242b
+{
+	MSM6242B_SECONDS_ONES = 0,
+	MSM6242B_SECONDS_TENS,
+	MSM6242B_MINUTES_ONES,
+	MSM6242B_MINUTES_TENS,
+	MSM6242B_HOURS_ONES,
+	MSM6242B_HOURS_TENS,
+	MSM6242B_DAY_ONES,
+	MSM6242B_DAY_TENS,
+	MSM6242B_MONTH_ONES,
+	MSM6242B_MONTH_TENS,
+	MSM6242B_YEAR_ONES,
+	MSM6242B_YEAR_TENS,
+	MSM6242B_WEEK_DAY,
+	MSM6242B_CTRL_D,
+	MSM6242B_CTRL_E,
+	MSM6242B_CTRL_F
+};
+
+typedef struct
+{
+	union
+	{
+		u8	m_Seconds_Reg;
+		struct
+		{
+			u8	m_uOnes : 4;
+			u8	m_uTens : 3;
+			u8			: 1;
+		} m_Seconds;
+	};
+	union
+	{
+		u8	m_Minutes_Reg;
+		struct
+		{
+			u8	m_uOnes : 4;
+			u8	m_uTens : 3;
+			u8			: 1;
+		} m_Minutes;
+	};
+	union
+	{
+		u8	m_Hours_Reg;
+		struct
+		{
+			u8	m_uOnes : 4;
+			u8	m_uTens : 2;
+			u8	m_bPM	: 1;
+			u8			: 1;
+		} m_Hours;
+	};
+
+	u32	m_2;
+} rtc_msm6242b;
+static_assert(sizeof(rtc_msm6242b) == 8);
+
+static volatile rtc_msm6242b s_rtcRegisters;
+
 const char aWeekDays[7][4] =
 {
 	"SUN",
@@ -82,21 +142,36 @@ void FormatHexDumpLine(u32 uCharX, u32 uCharY, const u32 uAddress, const u8* pLi
 	}
 }
 
-void write(const u32 uRegister, const u32 uValue)
+//------------------------------------------------------------------------------------------------
+//---- 				                                                                          ----
+//------------------------------------------------------------------------------------------------
+u8 register_read(const enum registers_msm6242b eRegister)
 {
-	gpio_put_masked(0xF << PIN_A0, uRegister << PIN_A0);
+	gpio_put_masked(0xF << PIN_A0, eRegister << PIN_A0);
     gpio_put(PIN_CS, false);
-	busy_wait_at_least_cycles(100);
+	gpio_set_dir_in_masked(0xF << PIN_D0);
+	delay_40ns();					// Address Stable For Min 20ns Before Read
+    gpio_put(PIN_READ, false);
+	delay_120ns();					// Data Ready In Maximum 120ns
+	const u32 uValue = gpio_get_all();
+    gpio_put(PIN_CS, true);
+	return (uValue >> PIN_D0) & 0xf;
+}
+
+//------------------------------------------------------------------------------------------------
+//---- 				                                                                          ----
+//------------------------------------------------------------------------------------------------
+void register_write(const enum registers_msm6242b eRegister, const u32 uValue)
+{
+	gpio_put_masked(0xF << PIN_A0, eRegister << PIN_A0);
+    gpio_put(PIN_CS, false);
+	delay_40ns();					// Address Stable For Min 20ns Before Write
     gpio_put(PIN_WRITE, false);
-	busy_wait_at_least_cycles(100);
 	gpio_set_dir_in_masked(0xF << PIN_D0);
 	gpio_put_masked(0xF << PIN_D0, uValue << PIN_D0);
-	busy_wait_at_least_cycles(100);
+	delay_120ns();					// Write Pulse Width Minimum 120ns
     gpio_put(PIN_WRITE, true);
-	busy_wait_at_least_cycles(100);
     gpio_put(PIN_CS, true);
-	busy_wait_at_least_cycles(100);
-	gpio_set_dir_out_masked(0xF << PIN_D0);
 }
 
 //------------------------------------------------------------------------------------------------
@@ -147,18 +222,27 @@ int main(void)
 
 	char szString[128];
 
-	write(0xd, 0x0);
-	write(0xe, 0x0);
-	write(0xf, 0x0);
-
-	gpio_put_masked(0xF << PIN_A0, 0 << PIN_A0);
-	gpio_put(PIN_CS, false);
+	register_write(MSM6242B_CTRL_D, 0x0);
+	register_write(MSM6242B_CTRL_E, 0x0);
+	register_write(MSM6242B_CTRL_F, 0x0);
 
 	while(true)
 	{
-		busy_wait_at_least_cycles(1000);
-		gpio_put(PIN_READ, false);
-		busy_wait_at_least_cycles(1000);
-		gpio_put(PIN_READ, true);
+		s_rtcRegisters.m_Minutes_Reg = (register_read(MSM6242B_MINUTES_TENS) << 4) | register_read(MSM6242B_MINUTES_ONES);
+		s_rtcRegisters.m_Seconds_Reg = (register_read(MSM6242B_SECONDS_TENS) << 4) | register_read(MSM6242B_SECONDS_ONES);
+		s_rtcRegisters.m_Hours_Reg = (register_read(MSM6242B_HOURS_TENS) << 4) | register_read(MSM6242B_HOURS_ONES);
+
+		u32 uOffset = sprintf(szString, "Time ");
+		szString[uOffset + 0] = '0' + s_rtcRegisters.m_Hours.m_uTens;
+		szString[uOffset + 1] = '0' + s_rtcRegisters.m_Hours.m_uOnes;
+		szString[uOffset + 2] = ':';
+		szString[uOffset + 3] = '0' + s_rtcRegisters.m_Minutes.m_uTens;
+		szString[uOffset + 4] = '0' + s_rtcRegisters.m_Minutes.m_uOnes;
+		szString[uOffset + 5] = ':';
+		szString[uOffset + 6] = '0' + s_rtcRegisters.m_Seconds.m_uTens;
+		szString[uOffset + 7] = '0' + s_rtcRegisters.m_Seconds.m_uOnes;
+		szString[uOffset + 8] = 0;
+		vga_DrawString(10, 10, szString, RGB111_CYAN);
+		sleep_ms(16);
 	}
 }
