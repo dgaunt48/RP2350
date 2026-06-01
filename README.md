@@ -16,3 +16,6 @@ Simple RP2350b dev board with 40 level shifted gpio pins and 3 bit VGA output.
 
 ## RTC_MCP951X
 Connect a MCP951X Spi Real Time Clock to the Raspberry Pi Pico.
+
+## RTC_MSM6242B
+Test the functionality of an obsolete MSM6242B Real Time Clock IC.

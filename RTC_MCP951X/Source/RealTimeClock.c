@@ -15,10 +15,6 @@
 
 //32.7695 with 10pf load caps
 
-// 32769.5 * 60  = 1,966,170
-// 32768 * 60    = 1,966,080
-// ..170 - ..080  = 90 / 2 = 45;
-
 enum board_pins
 {
 	PIN_RED = 0, PIN_GREEN, PIN_BLUE, PIN_HSYNC, PIN_VSYNC,
