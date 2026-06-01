@@ -47,6 +47,21 @@ enum registers_msm6242b
 	MSM6242B_CTRL_F
 };
 
+#define MSM6242B_CTRL_D_HOLD		(1)
+#define MSM6242B_CTRL_D_BUSY		(2)
+#define MSM6242B_CTRL_D_IRQ_FLAG	(4)
+#define MSM6242B_CTRL_D_30_SEC_ADJ	(8)
+
+#define MSM6242B_CTRL_E_MASK		(1)
+#define MSM6242B_CTRL_E_INTERRUPT	(2)
+#define MSM6242B_CTRL_E_PERIOD0		(4)
+#define MSM6242B_CTRL_E_PERIOD1		(8)
+
+#define MSM6242B_CTRL_F_RESET		(1)
+#define MSM6242B_CTRL_F_STOP		(2)
+#define MSM6242B_CTRL_F_24_HOUR		(4)
+#define MSM6242B_CTRL_F_TEST		(8)
+
 typedef struct
 {
 	union
@@ -110,11 +125,15 @@ typedef struct
 		struct
 		{
 			u8	m_uDayOfWeek 	: 3;
-			u8					: 1;
-			u8	m_uControl_D	: 4;
 		} m_Week;
+		struct
+		{
+			u8 				: 4;
+			u8 m_uControl_D	: 4;
+		};
 	};
-	u8	m_2;
+	u8	m_uControl_E	: 4;
+	u8	m_uControl_F	: 4;
 } rtc_msm6242b;
 static_assert(sizeof(rtc_msm6242b) == 8);
 
@@ -132,51 +151,7 @@ const char aWeekDays[7][4] =
 };
 
 //------------------------------------------------------------------------------------------------
-//---- ASCII to PetSCII                                                                       ----
-//------------------------------------------------------------------------------------------------
-u8 ascii_to_petscii(const u8 c)
-{
-    // Handle ASCII Lowercase (97-122) Maps 'a'-'z' to ROM Lowwercase (1-26)
-    if (c >= 97 && c <= 122)
-		return c - 96;
-
-    // Special Case For '@'
-    if (c == 64)
-		return 0;
-
-    // Handle Space (32) through 'Z' (90)
-	// This includes numbers and maps ASCII Uppercase (65-90) to ROM Uppercase (65-90)
-    if (c >= 32 && c <= 90)
-		return c;
-
-    // Default to Space
-    return 32; 
-}
-
-//------------------------------------------------------------------------------------------------
-//---- FormatHexDumpLine	                                                                  ----
-//------------------------------------------------------------------------------------------------
-void FormatHexDumpLine(u32 uCharX, u32 uCharY, const u32 uAddress, const u8* pLineBuffer, const u8 uColour, const bool bASCII)
-{
-	// Write Address Offset in 6 byte hex.
-	for(int i=5; i>=0; --i)
-		vga_DrawPetsciiChar((uCharX + 5 - i) << 3, uCharY << 3, g_aHexTable[(uAddress >> (i << 2)) & 15], uColour);
-
-	// Write 16 bytes worth of hex values.
- 	for(u32 uIndex=0; uIndex<16; ++uIndex)
-	{
-    	const u16 uHexPair = byteToHex(pLineBuffer[uIndex]);
-		vga_DrawPetsciiChar((uCharX + 8 + (uIndex * 3)) << 3, uCharY << 3, uHexPair >> 8, uColour);
-		vga_DrawPetsciiChar((uCharX + 9 + (uIndex * 3)) << 3, uCharY << 3, uHexPair & 255, uColour);
-
-		// Write ASCII or PETSCII version of byte.
-		const u8 uCurrentChar = (bASCII) ? ascii_to_petscii(pLineBuffer[uIndex]) : pLineBuffer[uIndex];
-		vga_DrawPetsciiChar((uCharX + 57 + uIndex) << 3, uCharY << 3, uCurrentChar, uColour);
-	}
-}
-
-//------------------------------------------------------------------------------------------------
-//---- 				                                                                          ----
+//---- register read				                                                          ----
 //------------------------------------------------------------------------------------------------
 u8 register_read(const enum registers_msm6242b eRegister)
 {
@@ -191,11 +166,11 @@ u8 register_read(const enum registers_msm6242b eRegister)
     delay_40ns(); // Hold time
     gpio_put(PIN_CS, true);
     busy_wait_at_least_cycles(40);
-    return (uValue >> PIN_D0) & 0xf;
+    return (uValue >> PIN_D0) & 0xF;
 }
 
 //------------------------------------------------------------------------------------------------
-//---- 				                                                                          ----
+//---- register write				                                                          ----
 //------------------------------------------------------------------------------------------------
 void register_write(const enum registers_msm6242b eRegister, const u32 uValue)
 {
@@ -257,7 +232,7 @@ int main(void)
 	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
 	vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
 
-	register_write(MSM6242B_CTRL_F, 0x2);
+	register_write(MSM6242B_CTRL_F, MSM6242B_CTRL_F_STOP);
 
 	register_write(MSM6242B_YEAR_TENS, 0x2);
 	register_write(MSM6242B_YEAR_ONES, 0x6);
@@ -283,20 +258,20 @@ int main(void)
 	while(true)
 	{
 		bool bRegisterRead = false;
-		int timeout_counter = 0;
+		u32 uTimeout = 0;
 
 		while (!bRegisterRead)
 		{
-			register_write(MSM6242B_CTRL_D, 0b0101);
+			register_write(MSM6242B_CTRL_D, MSM6242B_CTRL_D_IRQ_FLAG | MSM6242B_CTRL_D_HOLD);
 			busy_wait_us(150); 
+			s_rtcRegisters.m_uControl_D = register_read(MSM6242B_CTRL_D);
 
-			u8 uControlD = register_read(MSM6242B_CTRL_D);
-			if (uControlD & 0x02)
+			if (s_rtcRegisters.m_uControl_D & MSM6242B_CTRL_D_BUSY)
 			{
-				register_write(MSM6242B_CTRL_D, 0b0100);
+				register_write(MSM6242B_CTRL_D, MSM6242B_CTRL_D_IRQ_FLAG);
 				busy_wait_us(120); 
 				
-				if (timeout_counter++ > 1000)
+				if (uTimeout++ > 1000)
 				{
 					vga_DrawString(10, 14, "Loop Break!!!", RGB111_RED);
 					break; 
@@ -312,12 +287,11 @@ int main(void)
 				s_rtcRegisters.m_Month_Reg = (register_read(MSM6242B_MONTH_TENS) << 4) | register_read(MSM6242B_MONTH_ONES);
 				s_rtcRegisters.m_Day_Reg = (register_read(MSM6242B_DAY_TENS) << 4) | register_read(MSM6242B_DAY_ONES);
 				s_rtcRegisters.m_Week_Reg = register_read(MSM6242B_WEEK_DAY);
-
 				bRegisterRead = true;
 			}
 		}
 
-		register_write(MSM6242B_CTRL_D, 0b0100);
+		register_write(MSM6242B_CTRL_D, MSM6242B_CTRL_D_IRQ_FLAG);
 
 		u32 uOffset = sprintf(szString, "Date  ");
 		szString[uOffset + 0 ] = aWeekDays[s_rtcRegisters.m_Week.m_uDayOfWeek][0];
@@ -347,6 +321,18 @@ int main(void)
 		szString[uOffset + 24] = '0' + s_rtcRegisters.m_Seconds.m_uOnes;
 		szString[uOffset + 25] = 0;
 		vga_DrawString(10, 10, szString, RGB111_CYAN);
+
+		s_rtcRegisters.m_uControl_D = register_read(MSM6242B_CTRL_D);
+		s_rtcRegisters.m_uControl_E = register_read(MSM6242B_CTRL_E);
+		s_rtcRegisters.m_uControl_F = register_read(MSM6242B_CTRL_F);
+		sprintf(
+			szString, 
+			"Control Registers  D 0x%01x  E 0x%01x  F 0x%01x", 
+			s_rtcRegisters.m_uControl_D,
+			s_rtcRegisters.m_uControl_E,
+			s_rtcRegisters.m_uControl_F
+		);
+		vga_DrawString(7, 8, szString, RGB111_YELLOW);
 
 		if ((s_rtcRegisters.m_Week.m_uDayOfWeek != 0) ||
 			(s_rtcRegisters.m_Year.m_uTens != 2) ||
