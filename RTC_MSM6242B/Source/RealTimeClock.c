@@ -157,14 +157,11 @@ u8 register_read(const enum registers_msm6242b eRegister)
 {
     gpio_put_masked(0xF << PIN_A0, eRegister << PIN_A0);
     gpio_set_dir_in_masked(0xF << PIN_D0);
-    gpio_put(PIN_CS, false);
     delay_40ns();
     gpio_put(PIN_READ, false);
     delay_120ns(); 
     const u32 uValue = gpio_get_all();
     gpio_put(PIN_READ, true);
-    delay_40ns(); // Hold time
-    gpio_put(PIN_CS, true);
     busy_wait_at_least_cycles(40);
     return (uValue >> PIN_D0) & 0xF;
 }
@@ -178,12 +175,11 @@ void register_write(const enum registers_msm6242b eRegister, const u32 uValue)
     gpio_set_dir_out_masked(0xF << PIN_D0);
     gpio_put_masked(0xF << PIN_D0, (uValue & 0x0F) << PIN_D0);
     delay_40ns(); 
-    gpio_put(PIN_CS, false);
     gpio_put(PIN_WRITE, false);
     delay_120ns(); 
     gpio_put(PIN_WRITE, true);
-    gpio_put(PIN_CS, true);
     busy_wait_at_least_cycles(40);
+	gpio_set_dir_in_masked(0xF << PIN_D0);
 }
 
 //------------------------------------------------------------------------------------------------
@@ -193,13 +189,20 @@ int main(void)
 {
 	stdio_init_all();
 
+	// Set CS High While We Initialise
 	gpio_init(PIN_CS);
     gpio_set_dir(PIN_CS, GPIO_OUT);
     gpio_put(PIN_CS, true);
 
+	// The A501 Only Changes the Read / Write Lines
+	// It Never Uses The Select Or ALE Lines.
 	gpio_init(PIN_CS_HIGH);
     gpio_set_dir(PIN_CS_HIGH, GPIO_OUT);
-    gpio_put(PIN_CS_HIGH, false);
+	gpio_put(PIN_CS_HIGH, true);
+
+	gpio_init(PIN_ALE);
+    gpio_set_dir(PIN_ALE, GPIO_OUT);
+    gpio_put(PIN_ALE, true);
 
 	gpio_init(PIN_READ);
     gpio_set_dir(PIN_READ, GPIO_OUT);
@@ -208,10 +211,6 @@ int main(void)
 	gpio_init(PIN_WRITE);
     gpio_set_dir(PIN_WRITE, GPIO_OUT);
     gpio_put(PIN_WRITE, true);
-
-	gpio_init(PIN_ALE);
-    gpio_set_dir(PIN_ALE, GPIO_OUT);
-    gpio_put(PIN_ALE, true);
 
 	for(u32 i=0; i<4; ++i)
 	{
@@ -226,11 +225,15 @@ int main(void)
 	
 	// Start Clock
 	clock_gpio_init(PIN_32768HZ_CLOCK, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, ((float)SYS_CLK_HZ / (float)RTC_CLOCK_SPEED));
-    gpio_put(PIN_CS_HIGH, true);
 	
 	vga_Init(PIN_RED, PIN_HSYNC, PIN_VSYNC);
 	vga_FilledRect(0, 0, VGA_RESOLUTION_X, VGA_RESOLUTION_Y, RGB111_GREEN);
 	vga_FilledRect(1, 1, VGA_RESOLUTION_X-2, VGA_RESOLUTION_Y-2, RGB111_BLACK);
+
+	sleep_ms(100);
+
+	// Ready To Go
+	gpio_put(PIN_CS, false);
 
 	register_write(MSM6242B_CTRL_F, MSM6242B_CTRL_F_STOP);
 
@@ -293,6 +296,18 @@ int main(void)
 
 		register_write(MSM6242B_CTRL_D, MSM6242B_CTRL_D_IRQ_FLAG);
 
+		s_rtcRegisters.m_uControl_D = register_read(MSM6242B_CTRL_D);
+		s_rtcRegisters.m_uControl_E = register_read(MSM6242B_CTRL_E);
+		s_rtcRegisters.m_uControl_F = register_read(MSM6242B_CTRL_F);
+		sprintf(
+			szString, 
+			"Control Registers  D 0x%01x  E 0x%01x  F 0x%01x", 
+			s_rtcRegisters.m_uControl_D,
+			s_rtcRegisters.m_uControl_E,
+			s_rtcRegisters.m_uControl_F
+		);
+		vga_DrawString(7, 8, szString, RGB111_YELLOW);
+
 		u32 uOffset = sprintf(szString, "Date  ");
 		szString[uOffset + 0 ] = aWeekDays[s_rtcRegisters.m_Week.m_uDayOfWeek][0];
 		szString[uOffset + 1 ] = aWeekDays[s_rtcRegisters.m_Week.m_uDayOfWeek][1];
@@ -321,18 +336,6 @@ int main(void)
 		szString[uOffset + 24] = '0' + s_rtcRegisters.m_Seconds.m_uOnes;
 		szString[uOffset + 25] = 0;
 		vga_DrawString(10, 10, szString, RGB111_CYAN);
-
-		s_rtcRegisters.m_uControl_D = register_read(MSM6242B_CTRL_D);
-		s_rtcRegisters.m_uControl_E = register_read(MSM6242B_CTRL_E);
-		s_rtcRegisters.m_uControl_F = register_read(MSM6242B_CTRL_F);
-		sprintf(
-			szString, 
-			"Control Registers  D 0x%01x  E 0x%01x  F 0x%01x", 
-			s_rtcRegisters.m_uControl_D,
-			s_rtcRegisters.m_uControl_E,
-			s_rtcRegisters.m_uControl_F
-		);
-		vga_DrawString(7, 8, szString, RGB111_YELLOW);
 
 		if ((s_rtcRegisters.m_Week.m_uDayOfWeek != 0) ||
 			(s_rtcRegisters.m_Year.m_uTens != 2) ||

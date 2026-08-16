@@ -39,9 +39,9 @@
         "other_text_thickness": 0.15,
         "other_text_upright": false,
         "pads": {
-          "drill": 1.0,
-          "height": 1.7,
-          "width": 1.7
+          "drill": 2.5,
+          "height": 2.5,
+          "width": 2.5
         },
         "silk_line_width": 0.15,
         "silk_text_italic": false,
@@ -97,7 +97,7 @@
         "footprint_filters_mismatch": "ignore",
         "footprint_symbol_field_mismatch": "warning",
         "footprint_symbol_mismatch": "warning",
-        "footprint_type_mismatch": "warning",
+        "footprint_type_mismatch": "ignore",
         "hole_clearance": "error",
         "hole_near_hole": "error",
         "hole_to_hole": "error",
@@ -134,12 +134,12 @@
         "too_many_vias": "error",
         "track_angle": "error",
         "track_dangling": "warning",
-        "track_not_centered_on_via": "warning",
+        "track_not_centered_on_via": "ignore",
         "track_on_post_machined_layer": "error",
         "track_segment_length": "error",
         "track_width": "error",
         "tracks_crossing": "error",
-        "tuning_profile_track_geometries": "warning",
+        "tuning_profile_track_geometries": "ignore",
         "unconnected_items": "error",
         "unresolved_variable": "error",
         "via_dangling": "warning",
@@ -501,7 +501,7 @@
       "similar_label_and_power": "warning",
       "similar_labels": "warning",
       "similar_power": "warning",
-      "simulation_model_issue": "warning",
+      "simulation_model_issue": "ignore",
       "single_global_label": "warning",
       "stacked_pin_name": "warning",
       "unannotated": "error",
@@ -517,13 +517,13 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "RP2350B_LevelShift.kicad_pro",
+    "filename": "RTC_MSM6242B.kicad_pro",
     "version": 3
   },
   "net_settings": {
     "classes": [
       {
-        "bus_width": 12,
+        "bus_width": 20,
         "clearance": 0.2,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
@@ -542,147 +542,77 @@
         "wire_width": 10
       },
       {
-        "bus_width": 8,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
+        "bus_width": 20,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
-        "name": "3V3IO",
-        "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 1,
-        "schematic_color": "rgb(35, 223, 255)",
-        "track_width": 0.2,
+        "name": "Address Bus",
+        "pcb_color": "rgb(255, 0, 242)",
+        "priority": 2,
+        "schematic_color": "rgb(157, 105, 117)",
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 8
       },
       {
         "bus_width": 20,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.2,
-        "diff_pair_width": 0.5,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
-        "name": "DifferentialPair",
-        "pcb_color": "rgb(194, 0, 194)",
-        "priority": 0,
-        "schematic_color": "rgb(194, 0, 194)",
-        "track_width": 0.5,
+        "name": "Data Bus",
+        "pcb_color": "rgb(20, 0, 255)",
+        "priority": 1,
+        "schematic_color": "rgb(0, 0, 132)",
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
-        "wire_width": 20
+        "wire_width": 8
       },
       {
-        "bus_width": 12,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
+        "bus_width": 20,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
         "name": "GND",
         "pcb_color": "rgb(0, 255, 0)",
-        "priority": 2,
+        "priority": 3,
         "schematic_color": "rgb(0, 255, 0)",
         "track_width": 0.5,
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 20
       },
       {
-        "bus_width": 8,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
-        "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
-        "name": "GPIO",
-        "pcb_color": "rgba(0, 0, 0, 0.000)",
-        "priority": 3,
-        "schematic_color": "rgb(243, 41, 255)",
-        "track_width": 0.2,
-        "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
-        "wire_width": 8
-      },
-      {
         "bus_width": 20,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
-        "name": "Power 1v1",
+        "name": "Power 1vX",
         "pcb_color": "rgb(230, 230, 105)",
         "priority": 4,
         "schematic_color": "rgb(230, 230, 105)",
         "track_width": 0.5,
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 20
       },
       {
         "bus_width": 12,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
         "name": "Power 3v3",
         "pcb_color": "rgb(255, 165, 0)",
         "priority": 5,
         "schematic_color": "rgb(255, 165, 0)",
         "track_width": 0.5,
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 20
       },
       {
-        "bus_width": 12,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
+        "bus_width": 20,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
         "name": "Power 5v0",
         "pcb_color": "rgb(255, 0, 0)",
         "priority": 6,
         "schematic_color": "rgb(255, 0, 0)",
         "track_width": 0.5,
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 20
       },
       {
-        "bus_width": 8,
-        "clearance": 0.2,
-        "diff_pair_gap": 0.25,
-        "diff_pair_width": 0.2,
+        "bus_width": 20,
         "line_style": 0,
-        "microvia_diameter": 0.3,
-        "microvia_drill": 0.1,
         "name": "SPI",
         "pcb_color": "rgb(255, 160, 188)",
-        "priority": 7,
+        "priority": 0,
         "schematic_color": "rgb(255, 160, 188)",
-        "track_width": 0.2,
         "tuning_profile": "",
-        "via_diameter": 0.6,
-        "via_drill": 0.3,
         "wire_width": 8
       }
     ],
@@ -701,8 +631,8 @@
         "pattern": "+3V3"
       },
       {
-        "netclass": "Power 1v1",
-        "pattern": "/2350_1V1"
+        "netclass": "Power 1vX",
+        "pattern": "+1V1"
       },
       {
         "netclass": "GND",
@@ -713,44 +643,28 @@
         "pattern": "/2350_QSPI.*"
       },
       {
-        "netclass": "3V3IO",
-        "pattern": "/3v3_L*"
+        "netclass": "Address Bus",
+        "pattern": "/A\\d*"
       },
       {
-        "netclass": "3V3IO",
-        "pattern": "/3v3_R*"
+        "netclass": "Address Bus",
+        "pattern": "/3v3_A\\d*"
       },
       {
-        "netclass": "SPI",
-        "pattern": "/SPI0.TX"
-      },
-      {
-        "netclass": "SPI",
-        "pattern": "/SPI0.RX"
+        "netclass": "Data Bus",
+        "pattern": "/3v3_IO_\\d*"
       },
       {
         "netclass": "SPI",
-        "pattern": "/SPI0.~{CS}"
+        "pattern": "/SPI0*"
       },
       {
         "netclass": "SPI",
-        "pattern": "/SPI0.SCK"
+        "pattern": "/2350_USB_D*"
       },
       {
-        "netclass": "DifferentialPair",
-        "pattern": "/*-"
-      },
-      {
-        "netclass": "DifferentialPair",
-        "pattern": "/*+"
-      },
-      {
-        "netclass": "GPIO",
-        "pattern": "/GPIO_L*"
-      },
-      {
-        "netclass": "GPIO",
-        "pattern": "/GPIO_R*"
+        "netclass": "Data Bus",
+        "pattern": "/D\\d*"
       }
     ]
   },
@@ -907,7 +821,7 @@
       "default_line_thickness": 6.0,
       "default_text_size": 50.0,
       "field_names": [],
-      "hop_over_size_choice": 0,
+      "hop_over_size_choice": 3,
       "intersheets_ref_own_page": false,
       "intersheets_ref_prefix": "",
       "intersheets_ref_short": false,
@@ -951,8 +865,8 @@
     "subpart_id_separator": 0,
     "top_level_sheets": [
       {
-        "filename": "RP2350B_LevelShift.kicad_sch",
-        "name": "RP2350B_LevelShift",
+        "filename": "RTC_MSM6242B.kicad_sch",
+        "name": "RTC_MSM6242B",
         "uuid": "26813dea-ac31-4359-98cd-29d1f4f9df4c"
       }
     ],
@@ -962,7 +876,7 @@
   "sheets": [
     [
       "26813dea-ac31-4359-98cd-29d1f4f9df4c",
-      "RP2350B_LevelShift"
+      "RTC_MSM6242B"
     ]
   ],
   "text_variables": {},
